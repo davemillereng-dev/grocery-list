@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2e7d32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Super List">
+<title>Super List</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2320;--muted:#7a847e;--accent:#2e7d32;--accent2:#e8f3e9;--line:#e3e6e1;--danger:#c62828}
+@media (prefers-color-scheme:dark){:root{--bg:#121513;--card:#1c201d;--ink:#e8ece9;--muted:#8d978f;--accent:#43a047;--accent2:#1f2e21;--line:#2b312d;--danger:#ef5350}}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);padding-top:env(safe-area-inset-top)}
+.top{display:flex;align-items:center;gap:12px;padding:12px 16px 4px;max-width:640px;margin:0 auto}
+.top h1{font-size:20px;margin:0;flex:1}
+#count{font-size:14px;opacity:.9}
+.iconbtn{background:none;border:0;color:inherit;font-size:20px;padding:6px;cursor:pointer}
+.tabs{display:flex;max-width:640px;margin:0 auto}
+.tabs button{flex:1;background:none;border:0;color:rgba(255,255,255,.75);font:600 15px system-ui,sans-serif;padding:10px;border-bottom:3px solid transparent;cursor:pointer}
+.tabs button.on{color:#fff;border-color:#fff}
+main{max-width:640px;margin:0 auto;padding:12px 16px 110px}
+.bar{display:flex;gap:8px;margin-bottom:12px}
+input,select{flex:1;min-width:0;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.btn{font:600 15px system-ui,sans-serif;padding:12px 16px;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;flex:none}
+.btn.ghost{background:var(--accent2);color:var(--accent)}
+ul{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 4px 8px 12px;margin-bottom:6px;transition:background .4s}
+.item .txt{flex:1;word-break:break-word;padding:4px 0}
+.item .by{display:block;font-size:12px;color:var(--muted)}
+.item .del{background:none;border:0;color:var(--muted);font-size:18px;padding:8px 10px;cursor:pointer}
+.item.ticked{opacity:.65}
+.item.ticked .txt{text-decoration:line-through;color:var(--muted)}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);flex:none;display:grid;place-items:center;font-size:15px;color:#fff}
+.item.ticked .check{background:var(--accent)}
+.shop .item{cursor:pointer;user-select:none;-webkit-user-select:none}
+.item.flash{background:var(--accent2)}
+.badge{font-size:11px;background:var(--accent2);color:var(--accent);border-radius:6px;padding:1px 6px;margin-left:6px;text-decoration:none;display:inline-block}
+.section{font-size:12px;color:var(--muted);margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.05em}
+.empty{text-align:center;color:var(--muted);padding:32px 0}
+.footer{position:fixed;left:0;right:0;bottom:0;padding:16px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),var(--bg) 35%);display:flex;justify-content:center}
+.footer .btn{width:100%;max-width:608px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:20;padding:16px}
+.panel{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:400px}
+.panel h2{margin:0 0 4px;font-size:20px}
+.panel p{margin:4px 0;color:var(--muted);font-size:14px}
+.panel label{display:block;font-size:14px;color:var(--muted);margin:14px 0 4px}
+.panel input{width:100%}
+.panel .btn{width:100%;margin-top:18px}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>🛒 Super List</h1>
+    <span id="count"></span>
+    <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="tabs">
+    <button data-mode="add">Add items</button>
+    <button data-mode="shop">Shopping</button>
+  </div>
+</header>
+
+<main>
+  <section id="addView">
+    <form id="addForm" class="bar">
+      <input id="addInput" placeholder="Add an item…" autocomplete="off" enterkeyhint="done">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <ul id="addList"></ul>
+  </section>
+
+  <section id="shopView" class="shop hidden">
+    <div class="bar">
+      <select id="storeSel" aria-label="Supermarket"></select>
+      <button class="btn ghost" id="locBtn" title="Find nearest store" aria-label="Find nearest store">📍</button>
+      <button class="btn ghost" id="newStoreBtn" title="Add a store" aria-label="Add a store">＋</button>
+    </div>
+    <ul id="shopList"></ul>
+  </section>
+</main>
+
+<div class="footer hidden" id="footer">
+  <button class="btn" id="finishBtn">Finish shop &amp; clear ticked</button>
+</div>
+
+<div class="overlay hidden" id="setup">
+  <form class="panel" id="setupForm">
+    <h2>Welcome 👋</h2>
+    <p>Everyone in the family uses the same family code to share one list.</p>
+    <label for="nameIn">Your name</label>
+    <input id="nameIn" placeholder="e.g. Dave" autocomplete="off">
+    <label for="famIn">Family code</label>
+    <input id="famIn" placeholder="something hard to guess" autocomplete="off" autocapitalize="off">
+    <button class="btn" type="submit">Save</button>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCNbFZRvipyDzV03dms_oDo7kCsDmOoXZY",
+  authDomain: "super-list-55399.firebaseapp.com",
+  projectId: "super-list-55399",
+  storageBucket: "super-list-55399.firebasestorage.app",
+  messagingSenderId: "147336745555",
+  appId: "1:147336745555:web:e2fde89202a616ca702ca6"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+/* ---------- small helpers ---------- */
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch {} }
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Normalise item text so "Eggs", "egg " and "EGGS" count as the same thing
+const norm = t => {
+  let k = t.toLowerCase().trim().replace(/\s+/g, " ");
+  if (k.length > 3 && k.endsWith("s") && !k.endsWith("ss")) k = k.slice(0, -1);
+  return k;
+};
+let toastTimer;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600);
+}
+function fail(e){
+  console.error(e);
+  toast(e?.code === "permission-denied" ? "Permission denied – check the Firestore rules" : "Sync problem: " + (e?.code || e?.message || e));
+}
+function distM(lat1, lng1, lat2, lng2){
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r) * Math.cos(lat2*r) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/* ---------- state ---------- */
+let me = LS.get("sl_name") || "";
+let family = LS.get("sl_family") || "";
+let storeId = LS.get("sl_store") || "";
+let mode = LS.get("sl_mode") || "add";
+let items = [];
+let stores = [];
+let unsubs = [];
+
+const famKey = () => family.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const famDoc = () => doc(db, "households", famKey());
+const itemsCol = () => collection(famDoc(), "items");
+const storesCol = () => collection(famDoc(), "stores");
+const itemRef = id => doc(itemsCol(), id);
+const storeRef = id => doc(storesCol(), id);
+
+/* ---------- live sync ---------- */
+function start(){
+  unsubs.forEach(u => u()); unsubs = [];
+  unsubs.push(onSnapshot(itemsCol(), snap => {
+    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, fail));
+  unsubs.push(onSnapshot(storesCol(), snap => {
+    stores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    renderStores(); render();
+  }, fail));
+}
+
+/* ---------- layout prediction ---------- */
+// Score 0..1 = where in the store an item usually gets picked up (0 = first).
+function scoreFor(key){
+  const st = stores.find(s => s.id === storeId);
+  const own = st?.scores?.[key];
+  if (own != null) return own;
+  const others = stores.map(s => s.scores?.[key]).filter(v => v != null);
+  if (others.length) return others.reduce((a, b) => a + b, 0) / others.length;
+  return 2; // never seen anywhere: put at the end
+}
+
+/* ---------- rendering ---------- */
+const byNewest = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+const byTick = (a, b) => (a.tickedAt || 0) - (b.tickedAt || 0);
+
+function rowHTML(it, shop){
+  const isNew = shop && storeId && !it.ticked && scoreFor(it.key) >= 2;
+  return `<li class="item${it.ticked ? " ticked" : ""}" data-id="${esc(it.id)}">
+    ${shop ? `<span class="check">${it.ticked ? "✓" : ""}</span>` : ""}
+    <span class="txt">${esc(it.text)}${isNew ? '<span class="badge">new</span>' : ""}${it.addedBy ? `<span class="by">${esc(it.addedBy)}</span>` : ""}</span>
+    <button class="del" data-del aria-label="Delete">✕</button>
+  </li>`;
+}
+
+function render(){
+  const open = items.filter(i => !i.ticked);
+  const done = items.filter(i => i.ticked).sort(byTick);
+  $("#count").textContent = open.length ? `${open.length} to get` : "";
+
+  // Add mode: newest first, ticked ones underneath
+  let h = open.slice().sort(byNewest).map(i => rowHTML(i, false)).join("")
+       || '<li class="empty">The list is empty – add something!</li>';
+  if (done.length) h += '<li class="section">In the trolley</li>' + done.map(i => rowHTML(i, false)).join("");
+  $("#addList").innerHTML = h;
+
+  // Shop mode: sorted by learned store layout, ticked at the bottom in tick order
+  const sorted = open.slice().sort((a, b) => scoreFor(a.key) - scoreFor(b.key) || (a.createdAt || 0) - (b.createdAt || 0));
+  let s = sorted.map(i => rowHTML(i, true)).join("")
+       || `<li class="empty">${done.length ? "All done! 🎉" : "Nothing on the list."}</li>`;
+  if (done.length) s += '<li class="section">Got it</li>' + done.map(i => rowHTML(i, true)).join("");
+  $("#shopList").innerHTML = s;
+}
+
+function renderStores(){
+  const sel = $("#storeSel");
+  sel.innerHTML = '<option value="">Choose supermarket…</option>' +
+    stores.map(s => `<option value="${esc(s.id)}">${esc(s.name)}${s.lat != null ? " 📍" : ""}</option>`).join("");
+  sel.value = stores.some(s => s.id === storeId) ? storeId : "";
+}
+
+function flash(id){
+  const els = document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`);
+  els.forEach(el => { el.classList.add("flash"); el.scrollIntoView({ block: "center", behavior: "smooth" }); });
+  setTimeout(() => els.forEach(el => el.classList.remove("flash")), 1200);
+}
+
+/* ---------- actions ---------- */
+function addItem(raw){
+  const text = raw.trim(); if (!text) return;
+  const key = norm(text);
+  const open = items.find(i => i.key === key && !i.ticked);
+  if (open){ toast(`"${open.text}" is already on the list`); flash(open.id); return; }
+  const ticked = items.find(i => i.key === key && i.ticked);
+  if (ticked){
+    updateDoc(itemRef(ticked.id), { ticked: false, tickedAt: null, tickedStore: null }).catch(fail);
+    return;
+  }
+  addDoc(itemsCol(), { text, key, ticked: false, tickedAt: null, tickedStore: null, addedBy: me, createdAt: Date.now() }).catch(fail);
+}
+
+function toggle(id){
+  const it = items.find(i => i.id === id); if (!it) return;
+  if (it.ticked){
+    updateDoc(itemRef(id), { ticked: false, tickedAt: null, tickedStore: null }).catch(fail);
+  } else {
+    if (!storeId) toast("Tip: pick the supermarket so the app can learn its layout");
+    updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null }).catch(fail);
+  }
+}
+
+function delItem(id){ deleteDoc(itemRef(id)).catch(fail); }
+
+function finishShop(){
+  const done = items.filter(i => i.ticked);
+  if (!done.length){ toast("Nothing ticked yet"); return; }
+  const st = stores.find(s => s.id === storeId);
+  const trip = done.filter(i => i.tickedStore === storeId).sort(byTick);
+  const learn = st && trip.length >= 3;
+  if (!confirm(`Clear ${done.length} ticked item${done.length > 1 ? "s" : ""}?` +
+      (learn ? `\n\nThe order you ticked them will be used to learn the layout of ${st.name}.` : ""))) return;
+
+  const batch = writeBatch(db);
+  if (learn){
+    // Position in this trip: 0 = first picked, 1 = last picked.
+    // Blend into the running score so the layout adapts if the store is rearranged.
+    const scores = { ...(st.scores || {}) };
+    const n = trip.length;
+    trip.forEach((it, i) => {
+      const p = i / (n - 1);
+      const old = scores[it.key];
+      scores[it.key] = old == null ? p : Math.round((0.7 * old + 0.3 * p) * 10000) / 10000;
+    });
+    batch.set(storeRef(st.id), { scores }, { merge: true });
+  }
+  done.forEach(i => batch.delete(itemRef(i.id)));
+  batch.commit().catch(fail);
+  toast(learn ? `Cleared – ${st.name} layout updated` : "Cleared");
+}
+
+function selectStore(id){
+  storeId = id; LS.set("sl_store", id);
+  $("#storeSel").value = id; render();
+}
+
+function getPos(ok, silent){
+  if (!navigator.geolocation){ if (!silent) toast("Location isn't available on this device"); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => ok({ lat: p.coords.latitude, lng: p.coords.longitude }),
+    () => { if (!silent) toast("Couldn't get your location"); },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+function locate(silent){
+  getPos(({ lat, lng }) => {
+    let best = null, bd = Infinity;
+    stores.forEach(s => {
+      if (s.lat == null) return;
+      const d = distM(lat, lng, s.lat, s.lng);
+      if (d < bd){ bd = d; best = s; }
+    });
+    if (best && bd < 400){
+      selectStore(best.id);
+      if (!silent) toast(`📍 ${best.name}`);
+    } else if (!silent){
+      const cur = stores.find(s => s.id === storeId);
+      if (cur && confirm(`No saved store nearby.\n\nSave this spot as the location of ${cur.name}?`)){
+        setDoc(storeRef(cur.id), { lat, lng }, { merge: true }).catch(fail);
+        toast(`Location saved for ${cur.name}`);
+      } else if (!cur){
+        toast("No saved store nearby – tap ＋ to add this one");
+      }
+    }
+  }, silent);
+}
+
+function autoLocate(){
+  if (!navigator.permissions) return;
+  navigator.permissions.query({ name: "geolocation" })
+    .then(r => { if (r.state === "granted") locate(true); })
+    .catch(() => {});
+}
+
+function newStore(){
+  const name = (prompt("Supermarket name (e.g. Pak'nSave Riccarton)") || "").trim();
+  if (!name) return;
+  const ref = doc(storesCol());
+  setDoc(ref, { name, scores: {} }).catch(fail);
+  selectStore(ref.id);
+  if (confirm(`Are you at ${name} now?\n\nSaving its location lets the app pick it automatically next time.`)){
+    getPos(({ lat, lng }) => {
+      setDoc(ref, { lat, lng }, { merge: true }).catch(fail);
+      toast(`Location saved for ${name}`);
+    });
+  }
+}
+
+function setMode(m){
+  mode = m; LS.set("sl_mode", m);
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  $("#addView").classList.toggle("hidden", m !== "add");
+  $("#shopView").classList.toggle("hidden", m !== "shop");
+  $("#footer").classList.toggle("hidden", m !== "shop");
+  if (m === "shop") autoLocate();
+}
+
+function showSetup(){
+  $("#nameIn").value = me; $("#famIn").value = family;
+  $("#setup").classList.remove("hidden");
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$("#addForm").onsubmit = e => {
+  e.preventDefault();
+  addItem($("#addInput").value);
+  $("#addInput").value = ""; $("#addInput").focus();
+};
+$("#addList").addEventListener("click", e => {
+  const li = e.target.closest(".item"); if (!li) return;
+  if (e.target.closest("[data-del]")) delItem(li.dataset.id);
+});
+$("#shopList").addEventListener("click", e => {
+  const li = e.target.closest(".item"); if (!li) return;
+  if (e.target.closest("[data-del]")) delItem(li.dataset.id);
+  else toggle(li.dataset.id);
+});
+$("#storeSel").onchange = e => selectStore(e.target.value);
+$("#locBtn").onclick = () => locate(false);
+$("#newStoreBtn").onclick = newStore;
+$("#finishBtn").onclick = finishShop;
+$("#settingsBtn").onclick = showSetup;
+$("#setupForm").onsubmit = e => {
+  e.preventDefault();
+  const n = $("#nameIn").value.trim(), f = $("#famIn").value.trim();
+  if (!n){ toast("Please enter your name"); return; }
+  if (f.length < 6){ toast("Family code needs at least 6 characters"); return; }
+  const changed = f !== family;
+  me = n; family = f;
+  LS.set("sl_name", me); LS.set("sl_family", family);
+  $("#setup").classList.add("hidden");
+  if (changed && auth.currentUser) start();
+};
+
+let firstAuth = true;
+onAuthStateChanged(auth, user => {
+  if (user){ if (family) start(); }
+  else if (firstAuth) signInAnonymously(auth).catch(fail);
+  firstAuth = false;
+});
+
+setMode(mode);
+if (!me || !family) showSetup();
+</script>
+</body>
+</html>
