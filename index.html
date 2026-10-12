@@ -55,6 +55,8 @@ ul{list-style:none;margin:0;padding:0}
 .panel label{display:block;font-size:14px;color:var(--muted);margin:14px 0 4px}
 .panel input{width:100%}
 .panel .btn{width:100%;margin-top:18px}
+.panel .err{color:var(--danger)}
+.panel .err:empty{display:none}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;max-width:90vw;text-align:center;display:flex;gap:12px;align-items:center}
 .toast.on{opacity:1}
 .toast button{background:none;border:0;color:#9be59f;font:600 14px system-ui,sans-serif;padding:0;cursor:pointer}
@@ -98,23 +100,22 @@ ul{list-style:none;margin:0;padding:0}
   <button class="btn" id="finishBtn">Finish shop &amp; clear ticked</button>
 </div>
 
-<div class="overlay hidden" id="setup">
-  <form class="panel" id="setupForm">
-    <h2>Welcome 👋</h2>
-    <p>Everyone in the family uses the same family code to share one list.</p>
-    <label for="nameIn">Your name</label>
-    <input id="nameIn" placeholder="e.g. Dave" autocomplete="off">
-    <label for="famIn">Family code</label>
-    <input id="famIn" placeholder="something hard to guess" autocomplete="off" autocapitalize="off">
-    <button class="btn" type="submit">Save</button>
-  </form>
+<div class="overlay hidden" id="login">
+  <div class="panel">
+    <h2>🛒 Super List</h2>
+    <p>Sign in with your Google account to see the family shopping list.</p>
+    <p id="loginMsg" class="err"></p>
+    <button class="btn" id="googleBtn" type="button">Sign in with Google</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, updateDoc, deleteDoc, setDoc, onSnapshot, writeBatch, increment
@@ -216,7 +217,12 @@ function toast(msg, action){
 }
 function fail(e){
   console.error(e);
-  toast(e?.code === "permission-denied" ? "Permission denied – check the Firestore rules" : "Sync problem: " + (e?.code || e?.message || e));
+  if (e?.code === "permission-denied"){
+    stopSync();
+    showLogin(`${auth.currentUser?.email || "This account"} isn't on the family list yet. Ask whoever set up the list to add it, or use a different Google account.`);
+    return;
+  }
+  toast("Sync problem: " + (e?.code || e?.message || e));
 }
 function distM(lat1, lng1, lat2, lng2){
   const R = 6371000, r = Math.PI / 180;
@@ -226,8 +232,8 @@ function distM(lat1, lng1, lat2, lng2){
 }
 
 /* ---------- state ---------- */
-let me = LS.get("sl_name") || "";
-let family = LS.get("sl_family") || "";
+const HOUSEHOLD = "family";   // everyone allowed in by the security rules shares this one list
+let me = "";
 let storeId = LS.get("sl_store") || "";
 let mode = LS.get("sl_mode") || "add";
 let items = [];
@@ -248,8 +254,7 @@ function rebuildVocab(){
 }
 rebuildVocab();
 
-const famKey = () => family.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const famDoc = () => doc(db, "households", famKey());
+const famDoc = () => doc(db, "households", HOUSEHOLD);
 const itemsCol = () => collection(famDoc(), "items");
 const storesCol = () => collection(famDoc(), "stores");
 const wordsCol = () => collection(famDoc(), "words");
@@ -258,8 +263,9 @@ const storeRef = id => doc(storesCol(), id);
 const wordRef = key => doc(wordsCol(), (key.slice(0, 200) || "x").replace(/^\.+$/, "x").replace(/^__(.*)__$/, "_$1_"));
 
 /* ---------- live sync ---------- */
+function stopSync(){ unsubs.forEach(u => u()); unsubs = []; }
 function start(){
-  unsubs.forEach(u => u()); unsubs = [];
+  stopSync();
   unsubs.push(onSnapshot(itemsCol(), snap => {
     items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render(); renderChips();
@@ -540,9 +546,32 @@ function setMode(m){
   if (m === "shop") autoLocate();
 }
 
-function showSetup(){
-  $("#nameIn").value = me; $("#famIn").value = family;
-  $("#setup").classList.remove("hidden");
+/* ---------- Google sign-in ---------- */
+function showLogin(msg){
+  $("#loginMsg").textContent = msg || "";
+  $("#googleBtn").textContent = auth.currentUser ? "Use a different Google account" : "Sign in with Google";
+  $("#login").classList.remove("hidden");
+}
+
+async function googleSignIn(){
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  $("#loginMsg").textContent = "";
+  try {
+    if (auth.currentUser) await signOut(auth);
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment"){
+      signInWithRedirect(auth, provider);
+    } else if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request"){
+      showLogin("Sign-in didn't work: " + (e.code || e.message));
+    }
+  }
+}
+
+function accountMenu(){
+  const u = auth.currentUser; if (!u) return showLogin();
+  if (confirm(`Signed in as ${u.email}.\n\nSign out?`)) signOut(auth);
 }
 
 /* ---------- wiring ---------- */
@@ -580,28 +609,24 @@ $("#storeSel").onchange = e => selectStore(e.target.value);
 $("#locBtn").onclick = () => locate(false);
 $("#newStoreBtn").onclick = newStore;
 $("#finishBtn").onclick = finishShop;
-$("#settingsBtn").onclick = showSetup;
-$("#setupForm").onsubmit = e => {
-  e.preventDefault();
-  const n = $("#nameIn").value.trim(), f = $("#famIn").value.trim();
-  if (!n){ toast("Please enter your name"); return; }
-  if (f.length < 6){ toast("Family code needs at least 6 characters"); return; }
-  const changed = f !== family;
-  me = n; family = f;
-  LS.set("sl_name", me); LS.set("sl_family", family);
-  $("#setup").classList.add("hidden");
-  if (changed && auth.currentUser) start();
-};
+$("#settingsBtn").onclick = accountMenu;
+$("#googleBtn").onclick = googleSignIn;
 
-let firstAuth = true;
 onAuthStateChanged(auth, user => {
-  if (user){ if (family) start(); }
-  else if (firstAuth) signInAnonymously(auth).catch(fail);
-  firstAuth = false;
+  if (user && !user.isAnonymous){
+    me = (user.displayName || user.email || "").split(/[ @]/)[0];
+    $("#login").classList.add("hidden");
+    start();
+  } else {
+    stopSync();
+    items = []; stores = []; words = [];
+    rebuildVocab(); render(); renderStores(); renderChips();
+    if (user) signOut(auth);   // drop the old anonymous sign-in
+    showLogin();
+  }
 });
 
 setMode(mode);
-if (!me || !family) showSetup();
 </script>
 </body>
 </html>
