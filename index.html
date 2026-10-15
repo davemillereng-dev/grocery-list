@@ -38,6 +38,10 @@ ul{list-style:none;margin:0;padding:0}
 .item .txt{flex:1;word-break:break-word;padding:4px 0}
 .item .by{display:block;font-size:12px;color:var(--muted)}
 .item .del{background:none;border:0;color:var(--muted);font-size:18px;padding:8px 10px;cursor:pointer}
+.item .qty{font-weight:700;color:var(--accent);margin-left:6px;text-decoration:none;display:inline-block}
+.qtyctl{display:flex;gap:4px;flex:none}
+.qbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 17px/1 system-ui,sans-serif;padding:0;cursor:pointer}
+.qbtn:disabled{opacity:.3;cursor:default}
 .item.ticked{opacity:.65}
 .item.ticked .txt{text-decoration:line-through;color:var(--muted)}
 .check{width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);flex:none;display:grid;place-items:center;font-size:15px;color:#fff}
@@ -118,7 +122,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, updateDoc, deleteDoc, setDoc, onSnapshot, writeBatch, increment
+  collection, doc, updateDoc, deleteDoc, setDoc, onSnapshot, writeBatch, increment, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -258,6 +262,7 @@ const famDoc = () => doc(db, "households", HOUSEHOLD);
 const itemsCol = () => collection(famDoc(), "items");
 const storesCol = () => collection(famDoc(), "stores");
 const wordsCol = () => collection(famDoc(), "words");
+const historyCol = () => collection(famDoc(), "history");
 const itemRef = id => doc(itemsCol(), id);
 const storeRef = id => doc(storesCol(), id);
 const wordRef = key => doc(wordsCol(), (key.slice(0, 200) || "x").replace(/^\.+$/, "x").replace(/^__(.*)__$/, "_$1_"));
@@ -331,14 +336,38 @@ function resolve(raw){
   return { text: text.charAt(0).toUpperCase() + text.slice(1), cat: null };
 }
 
+/* ---------- quantities ---------- */
+// Items saved before quantities existed have no qty field: treat them as 1
+const qtyOf = it => Math.max(1, Math.floor(Number(it?.qty)) || 1);
+const qtyTag = n => n > 1 ? ` ×${n}` : "";
+
+// Split a typed entry into name + quantity: "2 milk", "2x milk", "x2 milk", "milk 2", "milk x2", "milk×2"
+function parseQty(raw){
+  const s = String(raw).trim().replace(/\s+/g, " ");
+  if (vocab.has(keyOf(s))) return { name: s, qty: 1 };   // a known item that contains a number
+  const pats = [
+    [/^(\d{1,2}) ?[x×]? (.+)$/i, 1, 2],
+    [/^[x×] ?(\d{1,2}) (.+)$/i, 1, 2],
+    [/^(.+?) [x×]? ?(\d{1,2})$/i, 2, 1],
+    [/^(.+?)[x×](\d{1,2})$/i, 2, 1],
+  ];
+  for (const [re, qi, ni] of pats){
+    const m = s.match(re);
+    if (!m) continue;
+    const q = parseInt(m[qi], 10), name = m[ni].trim();
+    if (q >= 1 && name.replace(/[^a-zà-ÿ]/gi, "").length >= 3) return { name, qty: q };   // "7 up" stays as typed
+  }
+  return { name: s, qty: 1 };
+}
+
 function renderChips(){
   const box = $("#chips");
-  const raw = $("#addInput").value;
-  const list = raw.trim() ? suggest(raw) : frequent();
-  if (!list.length){ box.innerHTML = ""; return; }
-  let h = raw.trim() ? "" : '<span class="chiphead">Often bought – tap to add</span>';
-  h += list.map(v => `<button type="button" class="chip${onList(v.key) ? " on" : ""}" data-key="${esc(v.key)}">${onList(v.key) ? "✓ " : ""}${esc(v.text)}</button>`).join("");
-  if (raw.trim() && !vocab.has(keyOf(raw))) h += `<button type="button" class="chip add" data-free="1">＋ "${esc(raw.trim())}"</button>`;
+  const { name: raw, qty } = parseQty($("#addInput").value);
+  const list = raw ? suggest(raw) : frequent();
+  if (!list.length && !raw){ box.innerHTML = ""; return; }
+  let h = raw ? "" : '<span class="chiphead">Often bought – tap to add</span>';
+  h += list.map(v => `<button type="button" class="chip${onList(v.key) ? " on" : ""}" data-key="${esc(v.key)}">${onList(v.key) ? "✓ " : ""}${esc(v.text)}${qtyTag(qty)}</button>`).join("");
+  if (raw && !vocab.has(keyOf(raw))) h += `<button type="button" class="chip add" data-free="1">＋ "${esc(raw)}"${qtyTag(qty)}</button>`;
   box.innerHTML = h;
 }
 
@@ -370,10 +399,17 @@ const byTick = (a, b) => (a.tickedAt || 0) - (b.tickedAt || 0);
 
 function rowHTML(it, shop){
   const cat = catOf(it.key, it);
-  const sub = [shop ? cat : null, it.addedBy].filter(Boolean).join(" · ");
+  const who = (it.addedByAll && it.addedByAll.length ? it.addedByAll : [it.addedBy]).filter(Boolean).join(", ");
+  const sub = [shop ? cat : null, who].filter(Boolean).join(" · ");
+  const q = qtyOf(it);
+  const ctl = it.ticked ? "" : `<span class="qtyctl">
+      <button class="qbtn" data-dec aria-label="One less"${q <= 1 ? " disabled" : ""}>−</button>
+      <button class="qbtn" data-inc aria-label="One more">+</button>
+    </span>`;
   return `<li class="item${it.ticked ? " ticked" : ""}" data-id="${esc(it.id)}">
     ${shop ? `<span class="check">${it.ticked ? "✓" : ""}</span>` : ""}
-    <span class="txt">${esc(it.text)}${sub ? `<span class="by">${esc(sub)}</span>` : ""}</span>
+    <span class="txt">${esc(it.text)}${q > 1 ? `<span class="qty">×${q}</span>` : ""}${sub ? `<span class="by">${esc(sub)}</span>` : ""}</span>
+    ${ctl}
     <button class="del" data-del aria-label="Delete">✕</button>
   </li>`;
 }
@@ -410,27 +446,42 @@ function flash(id){
 }
 
 /* ---------- actions ---------- */
-// Adds an item; returns the new item's id (or null if it was already on the list)
-function addItem(text, cat){
+// Adds an item (or more of one already on the list); returns { id, isNew }
+function addItem(text, cat, qty = 1){
   const key = keyOf(text);
-  const open = items.find(i => i.key === key && !i.ticked);
-  if (open){ toast(`"${open.text}" is already on the list`); flash(open.id); return null; }
   recordWord(text, key, cat);
-  const ticked = items.find(i => i.key === key && i.ticked);
-  if (ticked){
-    updateDoc(itemRef(ticked.id), { ticked: false, tickedAt: null, tickedStore: null }).catch(fail);
-    return ticked.id;
+  const open = items.find(i => i.key === key && !i.ticked);
+  if (open){
+    // Already on the list: add to its quantity and note who else wants it
+    const names = [open.addedBy, me].filter(Boolean);
+    updateDoc(itemRef(open.id), {
+      qty: open.qty == null ? qtyOf(open) + qty : increment(qty),
+      addedByAll: arrayUnion(...names)
+    }).catch(fail);
+    toast(`${open.text} ×${qtyOf(open) + qty}`);
+    flash(open.id);
+    return { id: open.id, isNew: false };
   }
+  // Not on the list, or only already in the trolley: add a new entry
   const ref = doc(itemsCol());
-  setDoc(ref, { text, key, cat: cat || null, ticked: false, tickedAt: null, tickedStore: null, addedBy: me, createdAt: Date.now() }).catch(fail);
-  return ref.id;
+  setDoc(ref, { text, key, cat: cat || null, qty, ticked: false, tickedAt: null, tickedStore: null,
+                addedBy: me, addedByAll: me ? [me] : [], createdAt: Date.now() }).catch(fail);
+  return { id: ref.id, isNew: true };
 }
 
-function addTyped(raw){
-  if (!raw.trim()) return;
+function changeQty(id, d){
+  const it = items.find(i => i.id === id); if (!it) return;
+  const q = qtyOf(it);
+  if (d < 0 && q <= 1) return;   // never below 1 – use ✕ to delete
+  updateDoc(itemRef(id), { qty: it.qty == null ? q + d : increment(d) }).catch(fail);
+}
+
+function addTyped(input){
+  const { name: raw, qty } = parseQty(input);
+  if (!raw) return;
   const r = resolve(raw);
-  const id = addItem(r.text, r.cat);
-  if (id && r.corrected){
+  const { id, isNew } = addItem(r.text, r.cat, qty);
+  if (isNew && r.corrected){
     toast(`Changed to "${r.text}"`, { label: "Undo", fn: () => {
       const orig = r.original.charAt(0).toUpperCase() + r.original.slice(1);
       const k = keyOf(orig);
@@ -474,7 +525,16 @@ function finishShop(){
     });
     batch.set(storeRef(st.id), { scores }, { merge: true });
   }
-  done.forEach(i => batch.delete(itemRef(i.id)));
+  // Keep a permanent record of each item bought (for usage tracking), then clear it from the list
+  done.forEach(i => {
+    batch.set(doc(historyCol()), {
+      text: i.text ?? "", key: i.key ?? "", cat: i.cat ?? null, qty: qtyOf(i),
+      addedBy: i.addedBy ?? null,
+      addedByAll: Array.isArray(i.addedByAll) && i.addedByAll.length ? i.addedByAll : (i.addedBy ? [i.addedBy] : []),
+      createdAt: i.createdAt ?? null, tickedAt: i.tickedAt ?? null, tickedStore: i.tickedStore ?? null
+    });
+    batch.delete(itemRef(i.id));
+  });
   batch.commit().catch(fail);
   toast(learn ? `Cleared – ${st.name} layout updated` : "Cleared");
 }
@@ -586,24 +646,30 @@ $("#addInput").addEventListener("input", renderChips);
 $("#chips").addEventListener("mousedown", e => e.preventDefault());   // keep the keyboard open
 $("#chips").addEventListener("click", e => {
   const b = e.target.closest(".chip"); if (!b) return;
+  const { name: raw, qty } = parseQty($("#addInput").value);
   if (b.dataset.free){
-    const raw = $("#addInput").value.trim();
-    addItem(raw.charAt(0).toUpperCase() + raw.slice(1), null);       // exactly as typed, no correction
+    addItem(raw.charAt(0).toUpperCase() + raw.slice(1), null, qty);  // exactly as typed, no correction
   } else {
     const v = vocab.get(b.dataset.key); if (!v) return;
-    addItem(v.text, v.cat);
+    addItem(v.text, v.cat, qty);
   }
   $("#addInput").value = "";
   renderChips();
 });
+// Shared handling for ✕ and −/+ on list rows; returns true if the tap was one of those
+function rowButtons(e, li){
+  if (e.target.closest("[data-del]")){ delItem(li.dataset.id); return true; }
+  if (e.target.closest("[data-inc]")){ changeQty(li.dataset.id, +1); return true; }
+  if (e.target.closest("[data-dec]")){ changeQty(li.dataset.id, -1); return true; }
+  return !!e.target.closest(".qtyctl");   // tap in the gap between − and + does nothing
+}
 $("#addList").addEventListener("click", e => {
   const li = e.target.closest(".item"); if (!li) return;
-  if (e.target.closest("[data-del]")) delItem(li.dataset.id);
+  rowButtons(e, li);
 });
 $("#shopList").addEventListener("click", e => {
   const li = e.target.closest(".item"); if (!li) return;
-  if (e.target.closest("[data-del]")) delItem(li.dataset.id);
-  else toggle(li.dataset.id);
+  if (!rowButtons(e, li)) toggle(li.dataset.id);
 });
 $("#storeSel").onchange = e => selectStore(e.target.value);
 $("#locBtn").onclick = () => locate(false);
