@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5f99">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<title>Family Planner</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--ink:#1c232b;--muted:#77818c;--accent:#1f5f99;--accent2:#e6eef7;--line:#e1e6ec;--warn:#b45309;--warnbg:#fff4e0;--danger:#c62828}
+@media (prefers-color-scheme:dark){:root{--bg:#11151a;--card:#1a2027;--ink:#e6ebf0;--muted:#8c97a3;--accent:#5b9bd5;--accent2:#1c2a38;--line:#2a323b;--warn:#f0a94a;--warnbg:#3a2a12;--danger:#ef5350}}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);padding-top:env(safe-area-inset-top)}
+.top{display:flex;align-items:center;gap:8px;padding:12px 16px 4px;max-width:720px;margin:0 auto}
+.top h1{font-size:20px;margin:0;flex:1}
+.iconbtn{background:none;border:0;color:inherit;font-size:20px;padding:6px;cursor:pointer;text-decoration:none}
+.tabs{display:flex;max-width:720px;margin:0 auto}
+.tabs button{flex:1;background:none;border:0;color:rgba(255,255,255,.75);font:600 15px system-ui,sans-serif;padding:10px 4px;border-bottom:3px solid transparent;cursor:pointer;position:relative}
+.tabs button.on{color:#fff;border-color:#fff}
+.tabs .n{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#f0a94a;color:#1c232b;font-size:12px;margin-left:4px}
+.tabs .n:empty{display:none}
+main{max-width:720px;margin:0 auto;padding:12px 16px 100px}
+.banner{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;gap:10px;align-items:center;font-size:14px}
+.banner span{flex:1}
+.people{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+.pchip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.pchip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.brief{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.brief h2{margin:0 0 2px;font-size:18px}
+.brief p{margin:0;color:var(--muted);font-size:14px}
+.daycap{font-size:13px;color:var(--muted);margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between}
+.daycap.today{color:var(--accent);font-weight:700}
+ul{list-style:none;margin:0;padding:0}
+.ev{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pc,var(--line));border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer}
+.ev .when{flex:none;width:62px;font-size:14px;font-weight:600}
+.ev .when small{display:block;color:var(--muted);font-weight:400}
+.ev .body{flex:1;min-width:0}
+.ev .title{font-weight:600;word-break:break-word}
+.ev .meta{font-size:13px;color:var(--muted);margin-top:2px}
+.ev .flag{font-size:13px;color:var(--warn);margin-top:3px}
+.ev.done .title{text-decoration:line-through;color:var(--muted)}
+.ev.done,.ev.dismissed{opacity:.55}
+.tag{display:inline-block;font-size:11px;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px;background:var(--accent2);color:var(--accent);font-weight:600}
+.tag.warn{background:var(--warnbg);color:var(--warn)}
+.empty{color:var(--muted);font-size:14px;padding:8px 4px}
+.att{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.att .why{font-size:13px;color:var(--warn);font-weight:600}
+.att .what{font-weight:600;margin:2px 0}
+.att .meta{font-size:13px;color:var(--muted)}
+.att .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.sbtn{font:600 13px system-ui,sans-serif;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.sbtn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.sbtn.del{color:var(--danger)}
+.weeknav{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.weeknav b{flex:1;text-align:center}
+.btn{font:600 15px system-ui,sans-serif;padding:12px 16px;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.btn.ghost{background:var(--accent2);color:var(--accent)}
+.fab{position:fixed;right:max(16px,calc(50% - 344px));bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:30px;box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;z-index:6}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.overlay.center{align-items:center;padding:16px}
+.sheet{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.overlay.center .sheet{border-radius:14px;max-width:400px}
+.sheet h2{margin:0 0 10px;font-size:20px}
+.sheet p{color:var(--muted);font-size:14px;margin:4px 0}
+.field{margin-bottom:12px}
+.field label,.lbl{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:8px}
+.row>*{flex:1;min-width:0}
+input,select,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
+textarea{min-height:64px;resize:vertical}
+input[type=checkbox]{width:auto}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:18px;padding:6px 10px;font-size:14px;color:var(--ink);margin:0;cursor:pointer}
+.inline{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink)}
+.states{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.sheetacts{display:flex;gap:8px;margin-top:6px}
+.sheetacts .btn{flex:1}
+.err{color:var(--danger);font-size:14px}
+.err:empty{display:none}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.update{position:fixed;left:50%;top:calc(110px + env(safe-area-inset-top));transform:translateX(-50%);z-index:25;background:var(--accent);color:#fff;border:0;border-radius:20px;padding:10px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>📅 Family Planner</h1>
+    <a class="iconbtn" href="./" title="Shopping list" aria-label="Shopping list">🛒</a>
+    <button class="iconbtn" id="refreshBtn" aria-label="Refresh">⟳</button>
+    <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="tabs">
+    <button data-view="today">Today</button>
+    <button data-view="week">This week</button>
+    <button data-view="attn">Needs attention<span class="n" id="attnCount"></span></button>
+  </div>
+</header>
+
+<main>
+  <div class="banner hidden" id="reconnect">
+    <span>Calendar connection has timed out (Google allows about an hour).</span>
+    <button class="sbtn pri" id="reconnectBtn">Reconnect</button>
+  </div>
+  <div class="banner hidden" id="needCal">
+    <span>Choose which Google Calendar the family shares.</span>
+    <button class="sbtn pri" id="needCalBtn">Set up</button>
+  </div>
+  <div class="people" id="people"></div>
+  <section id="todayView"></section>
+  <section id="weekView" class="hidden"></section>
+  <section id="attnView" class="hidden"></section>
+</main>
+
+<button class="fab hidden" id="addBtn" aria-label="Add commitment">+</button>
+
+<!-- sign in -->
+<div class="overlay center hidden" id="login">
+  <div class="sheet">
+    <h2>📅 Family Planner</h2>
+    <p>Sign in with your Google account. You'll be asked to let the planner see and add events in your Google Calendar.</p>
+    <p class="err" id="loginMsg"></p>
+    <button class="btn" id="googleBtn" style="width:100%;margin-top:14px">Sign in with Google</button>
+  </div>
+</div>
+
+<!-- add / edit -->
+<div class="overlay hidden" id="editor">
+  <form class="sheet" id="evForm" autocomplete="off">
+    <h2 id="edTitle">Add commitment</h2>
+    <div class="states hidden" id="edStates"></div>
+    <div class="field hidden" id="scopeField">
+      <span class="lbl">This is a repeating event. Change…</span>
+      <div class="checks">
+        <label><input type="radio" name="scope" value="one" checked> Just this one</label>
+        <label><input type="radio" name="scope" value="all"> Every occurrence</label>
+      </div>
+    </div>
+    <div class="field"><label for="fTitle">What</label><input id="fTitle" required placeholder="e.g. Molly swimming"></div>
+    <div class="field inline"><input type="checkbox" id="fAllDay"><label for="fAllDay" style="margin:0;color:var(--ink)">All day</label>
+      <span style="flex:1"></span><input type="checkbox" id="fMulti"><label for="fMulti" style="margin:0;color:var(--ink)">Several days</label></div>
+    <div class="row field">
+      <div><label for="fDate">Date</label><input type="date" id="fDate" required></div>
+      <div id="endDateWrap" class="hidden"><label for="fEndDate">Until</label><input type="date" id="fEndDate"></div>
+    </div>
+    <div class="row field" id="timeRow">
+      <div><label for="fStart">Starts</label><input type="time" id="fStart" value="09:00"></div>
+      <div><label for="fEnd">Ends</label><input type="time" id="fEnd" value="10:00"></div>
+    </div>
+    <div class="row field">
+      <div><label for="fRepeat">Repeats</label>
+        <select id="fRepeat"><option value="">Doesn't repeat</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthly">Monthly</option></select></div>
+      <div id="untilWrap" class="hidden"><label for="fUntil">Repeat until (optional)</label><input type="date" id="fUntil"></div>
+    </div>
+    <div class="field"><label for="fPrimary">Who it's for</label><select id="fPrimary"></select></div>
+    <div class="field"><span class="lbl">Who's involved</span><div class="checks" id="fInvolved"></div></div>
+    <div class="row field">
+      <div><label for="fResp">Who's responsible</label><select id="fResp"></select></div>
+      <div><label for="fSupport">Help needed</label><input id="fSupport" list="supportList" placeholder="e.g. Transport"></div>
+    </div>
+    <div class="field"><label for="fAction">Action needed (shows in Needs attention until done)</label><input id="fAction" placeholder="e.g. Pay $20 trip fee, sign form"></div>
+    <div class="row field">
+      <div><label for="fCat">Category</label><input id="fCat" list="catList" placeholder="e.g. School"></div>
+      <div><label for="fLoc">Where</label><input id="fLoc" placeholder="optional"></div>
+    </div>
+    <div class="field"><label for="fNotes">Notes</label><textarea id="fNotes" placeholder="Gear to bring, instructions…"></textarea></div>
+    <p class="err" id="edErr"></p>
+    <div class="sheetacts">
+      <button type="button" class="btn ghost" id="edCancel">Cancel</button>
+      <button type="submit" class="btn" id="edSave">Save</button>
+    </div>
+    <div class="sheetacts" id="edDelWrap"><button type="button" class="sbtn del" id="edDelete" style="flex:1">Delete…</button></div>
+  </form>
+</div>
+
+<!-- settings -->
+<div class="overlay center hidden" id="settings">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <div class="field"><label for="sCal">Shared family calendar</label><select id="sCal"></select>
+      <p>Everyone in the family needs edit access to this calendar in Google Calendar.</p></div>
+    <div class="field"><label for="sPeople">Household members (comma separated)</label><input id="sPeople" placeholder="Dave, Sam, Molly, Grandma"></div>
+    <p class="err" id="sErr"></p>
+    <div class="sheetacts">
+      <button type="button" class="btn ghost" id="sClose">Close</button>
+      <button type="button" class="btn" id="sSave">Save</button>
+    </div>
+    <p id="sWho" style="margin-top:14px"></p>
+    <button type="button" class="sbtn" id="sSignOut">Sign out</button>
+  </div>
+</div>
+
+<datalist id="supportList"><option>Transport</option><option>Pick-up</option><option>Drop-off</option><option>Childcare</option><option>Packed lunch</option><option>Money</option></datalist>
+<datalist id="catList"><option>School</option><option>Sport</option><option>Work</option><option>Study</option><option>Health</option><option>Bills</option><option>Social</option><option>Family</option><option>Travel</option></datalist>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  reauthenticateWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* Same Firebase project as the shopping list – sign-in and the family email list are shared. */
+const firebaseConfig = {
+  apiKey: "AIzaSyCNbFZRvipyDzV03dms_oDo7kCsDmOoXZY",
+  authDomain: "super-list-55399.firebaseapp.com",
+  projectId: "super-list-55399",
+  storageBucket: "super-list-55399.firebasestorage.app",
+  messagingSenderId: "147336745555",
+  appId: "1:147336745555:web:e2fde89202a616ca702ca6"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+
+const HOUSEHOLD = "family";
+const configRef = () => doc(db, "households", HOUSEHOLD, "planner", "config");
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+];
+const API = "https://www.googleapis.com/calendar/v3";
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "Pacific/Auckland";
+const COLORS = ["#1f77b4", "#d6336c", "#2f9e44", "#f08c00", "#7048e8", "#0c8599", "#c2255c", "#5c940d"];
+const DAY = 86400000;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch {} },
+  del(k){ try { localStorage.removeItem(k); } catch {} }
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const weekStartOf = d => addDays(startOfDay(d), -((d.getDay() + 6) % 7));   // Monday
+const fmtTime = d => d.toLocaleTimeString("en-NZ", { hour: "numeric", minute: "2-digit" }).replace(" ", "").toLowerCase();
+const fmtDay = d => d.toLocaleDateString("en-NZ", { weekday: "long", day: "numeric", month: "short" });
+const fmtShort = d => d.toLocaleDateString("en-NZ", { weekday: "short", day: "numeric", month: "short" });
+const hhmm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const split = s => String(s || "").split(",").map(x => x.trim()).filter(Boolean);
+
+let toastTimer;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2800);
+}
+
+/* ---------- state ---------- */
+let me = "";
+let config = { calendarId: "", calendarName: "", people: [] };
+let events = [];
+let view = LS.get("fp_view") || "today";
+let person = LS.get("fp_person") || "";
+let weekStart = weekStartOf(new Date());
+let editing = null;
+let calendars = [];
+let pollTimer = null;
+let unsubConfig = null;
+
+/* ---------- Google Calendar access token ----------
+   Google gives a browser app a calendar pass that lasts about an hour.
+   It's kept on this phone until it expires; after that one tap on "Reconnect" renews it. */
+function saveToken(t){ if (t) LS.set("fp_tok", JSON.stringify({ t, exp: Date.now() + 55 * 60000, uid: auth.currentUser?.uid || "" })); }
+function token(){
+  try {
+    const o = JSON.parse(LS.get("fp_tok") || "null");
+    if (o && o.exp > Date.now() && (!auth.currentUser || o.uid === auth.currentUser.uid || !o.uid)) return o.t;
+  } catch {}
+  return "";
+}
+function clearToken(){ LS.del("fp_tok"); }
+
+function provider(){
+  const p = new GoogleAuthProvider();
+  SCOPES.forEach(s => p.addScope(s));
+  const u = auth.currentUser;
+  p.setCustomParameters(u?.email ? { login_hint: u.email } : { prompt: "select_account" });
+  return p;
+}
+
+async function connect(){
+  $("#loginMsg").textContent = "";
+  try {
+    const res = auth.currentUser ? await reauthenticateWithPopup(auth.currentUser, provider()) : await signInWithPopup(auth, provider());
+    saveToken(GoogleAuthProvider.credentialFromResult(res)?.accessToken);
+    showReconnect(false);
+    await loadEvents();
+  } catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return signInWithRedirect(auth, provider());
+    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+    if (e.code === "auth/user-mismatch") return toast("Please choose the same Google account you're signed in with");
+    $("#loginMsg").textContent = "Sign-in didn't work: " + (e.code || e.message);
+    toast("Sign-in didn't work: " + (e.code || e.message));
+  }
+}
+
+async function gcal(method, path, { body, query } = {}){
+  const t = token();
+  if (!t){ showReconnect(true); throw new Error("not-connected"); }
+  const url = new URL(API + path);
+  if (query) Object.entries(query).forEach(([k, v]) => { if (v != null && v !== "") url.searchParams.set(k, v); });
+  const r = await fetch(url, {
+    method,
+    headers: { Authorization: "Bearer " + t, ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (r.status === 401){ clearToken(); showReconnect(true); throw new Error("not-connected"); }
+  if (r.status === 204 || r.status === 410) return null;
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || ("Google Calendar error " + r.status));
+  return j;
+}
+const calPath = () => "/calendars/" + encodeURIComponent(config.calendarId);
+
+function showReconnect(on){ $("#reconnect").classList.toggle("hidden", !on); }
+
+/* ---------- events ---------- */
+function toEvent(e){
+  const sp = e.extendedProperties?.shared || {};
+  const allDay = !!e.start?.date;
+  const start = allDay ? parseYmd(e.start.date) : new Date(e.start.dateTime);
+  const end = allDay ? parseYmd(e.end.date) : new Date(e.end.dateTime);
+  return {
+    id: e.id, seriesId: e.recurringEventId || null, recurring: !!e.recurringEventId,
+    title: e.summary || "(no title)", location: e.location || "", notes: e.description || "",
+    allDay, start, end,
+    primary: sp.slPrimary || "", involved: split(sp.slInvolved), responsible: sp.slResponsible || "",
+    support: sp.slSupport || "", action: sp.slAction || "", category: sp.slCategory || "",
+    state: sp.slState || "", review: sp.slReview === "1", source: sp.slSource || "", amount: sp.slAmount || "",
+    link: e.htmlLink || ""
+  };
+}
+
+function range(){
+  const today = startOfDay(new Date());
+  const from = new Date(Math.min(weekStart, today));
+  const to = new Date(Math.max(addDays(weekStart, 7), addDays(today, 15)));
+  return { from, to };
+}
+
+let loading = false;
+async function loadEvents(){
+  if (!config.calendarId || !token() || loading) return;
+  loading = true;
+  try {
+    const { from, to } = range();
+    const out = []; let pageToken = "";
+    do {
+      const j = await gcal("GET", calPath() + "/events", { query: {
+        singleEvents: "true", orderBy: "startTime", timeMin: from.toISOString(), timeMax: to.toISOString(),
+        maxResults: "250", pageToken
+      } });
+      (j.items || []).filter(e => e.status !== "cancelled" && e.start).forEach(e => out.push(toEvent(e)));
+      pageToken = j.nextPageToken || "";
+    } while (pageToken);
+    events = out;
+    render();
+  } catch (e) {
+    if (e.message !== "not-connected") toast(e.message);
+  } finally { loading = false; }
+}
+
+async function loadCalendars(){
+  const j = await gcal("GET", "/users/me/calendarList", { query: { minAccessRole: "writer", maxResults: "250" } });
+  calendars = (j.items || []).map(c => ({ id: c.id, name: c.summaryOverride || c.summary, primary: !!c.primary }));
+  return calendars;
+}
+
+/* ---------- coordination logic ---------- */
+const occursOn = (e, day) => e.start < addDays(day, 1) && e.end > day && !(e.allDay && e.end <= day);
+const active = e => e.state !== "done" && e.state !== "dismissed";
+const peopleOf = e => [...new Set([e.primary, ...e.involved, e.responsible].filter(Boolean))];
+const matchesPerson = e => !person || peopleOf(e).includes(person);
+
+// Two timed events overlap and the same adult is responsible for both
+function clashes(){
+  const map = new Map();
+  const list = events.filter(e => !e.allDay && e.responsible && active(e)).sort((a, b) => a.start - b.start);
+  for (let i = 0; i < list.length; i++){
+    for (let j = i + 1; j < list.length && list[j].start < list[i].end; j++){
+      const a = list[i], b = list[j];
+      if (a.responsible === b.responsible){
+        (map.get(a.id) || map.set(a.id, []).get(a.id)).push(b);
+        (map.get(b.id) || map.set(b.id, []).get(b.id)).push(a);
+      }
+    }
+  }
+  return map;
+}
+
+function attentionItems(clashMap){
+  const today = startOfDay(new Date()), until = addDays(today, 15);
+  const out = [];
+  for (const e of events){
+    if (e.end <= today || e.start >= until) continue;
+    const reasons = [];
+    if (e.review) reasons.push({ kind: "review", text: "Added from email – check the details" });
+    if (e.state === "attention") reasons.push({ kind: "flag", text: "Marked as needing attention" });
+    if (active(e) && e.action) reasons.push({ kind: "action", text: "To do: " + e.action });
+    if (active(e) && e.support && !e.responsible) reasons.push({ kind: "support", text: `Needs someone for: ${e.support}` });
+    for (const o of clashMap.get(e.id) || []) reasons.push({ kind: "clash", text: `Clash: ${e.responsible} is also responsible for “${o.title}” (${fmtTime(o.start)})` });
+    if (reasons.length) out.push({ e, reasons });
+  }
+  return out.sort((a, b) => a.e.start - b.e.start);
+}
+
+/* ---------- rendering ---------- */
+function colorOf(name){
+  const i = config.people.indexOf(name);
+  return i < 0 ? "var(--line)" : COLORS[i % COLORS.length];
+}
+
+function whenHTML(e, day){
+  if (e.allDay) return `All day${e.end - e.start > DAY ? `<small>to ${fmtShort(addDays(e.end, -1))}</small>` : ""}`;
+  const s = e.start < day ? "…" : fmtTime(e.start);
+  const en = e.end > addDays(day, 1) ? "…" : fmtTime(e.end);
+  return `${s}<small>${en}</small>`;
+}
+
+function evHTML(e, day, clashMap){
+  const bits = [];
+  if (e.primary) bits.push(e.primary);
+  const others = e.involved.filter(p => p !== e.primary);
+  if (others.length) bits.push("with " + others.join(", "));
+  if (e.responsible) bits.push(`${e.support ? "🚗 " : "👤 "}${e.responsible}${e.support ? " – " + e.support.toLowerCase() : " responsible"}`);
+  else if (e.support) bits.push(`⚠ ${e.support} – nobody yet`);
+  if (e.location) bits.push("📍 " + e.location);
+  const flags = [];
+  if (active(e) && e.action) flags.push("☐ " + e.action);
+  for (const o of clashMap.get(e.id) || []) flags.push(`⚠ Clash with “${o.title}”`);
+  const tags = [
+    e.review ? '<span class="tag warn">from email</span>' : "",
+    e.state === "attention" ? '<span class="tag warn">attention</span>' : "",
+    e.state === "done" ? '<span class="tag">done</span>' : "",
+    e.state === "dismissed" ? '<span class="tag">dismissed</span>' : "",
+    e.recurring ? '<span class="tag">↻</span>' : ""
+  ].join("");
+  return `<li class="ev ${e.state}" data-id="${esc(e.id)}" style="--pc:${colorOf(e.primary)}">
+    <div class="when">${whenHTML(e, day)}</div>
+    <div class="body">
+      <div class="title">${esc(e.title)}${tags}</div>
+      ${bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : ""}
+      ${flags.map(f => `<div class="flag">${esc(f)}</div>`).join("")}
+    </div></li>`;
+}
+
+function dayList(day, clashMap){
+  return events.filter(e => occursOn(e, day) && matchesPerson(e))
+    .sort((a, b) => (b.allDay - a.allDay) || (a.start - b.start));
+}
+
+function render(){
+  const clashMap = clashes();
+  const attn = attentionItems(clashMap).filter(x => matchesPerson(x.e));
+  $("#attnCount").textContent = attn.length || "";
+
+  // People filter
+  $("#people").innerHTML = config.people.length ? [`<button class="pchip${person ? "" : " on"}" data-p="">Everyone</button>`,
+    ...config.people.map(p => `<button class="pchip${person === p ? " on" : ""}" data-p="${esc(p)}"><span class="dot" style="background:${colorOf(p)}"></span>${esc(p)}</button>`)].join("") : "";
+
+  // Today
+  const today = startOfDay(new Date()), tomorrow = addDays(today, 1);
+  const tList = dayList(today, clashMap), tmList = dayList(tomorrow, clashMap);
+  const todaysAttn = attn.filter(x => occursOn(x.e, today)).length;
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+  $("#todayView").innerHTML = `
+    <div class="brief"><h2>${greet}${me ? ", " + esc(me) : ""}</h2>
+      <p>${fmtDay(today)} · ${tList.filter(active).length || "Nothing"} on today${todaysAttn ? ` · <b style="color:var(--warn)">${todaysAttn} need${todaysAttn > 1 ? "" : "s"} attention</b>` : ""}${attn.length ? ` · ${attn.length} in the next two weeks` : ""}</p></div>
+    <div class="daycap today"><span>Today</span></div>
+    <ul>${tList.map(e => evHTML(e, today, clashMap)).join("") || '<li class="empty">Nothing scheduled.</li>'}</ul>
+    <div class="daycap"><span>Tomorrow · ${fmtShort(tomorrow)}</span></div>
+    <ul>${tmList.map(e => evHTML(e, tomorrow, clashMap)).join("") || '<li class="empty">Nothing scheduled.</li>'}</ul>`;
+
+  // Week
+  let w = `<div class="weeknav"><button class="sbtn" data-wk="-1">‹ Prev</button><b>${fmtShort(weekStart)} – ${fmtShort(addDays(weekStart, 6))}</b><button class="sbtn" data-wk="1">Next ›</button></div>
+    <div style="text-align:center"><button class="sbtn" data-wk="0">This week</button></div>`;
+  for (let i = 0; i < 7; i++){
+    const d = addDays(weekStart, i), list = dayList(d, clashMap);
+    const isToday = +d === +today;
+    w += `<div class="daycap${isToday ? " today" : ""}"><span>${fmtDay(d)}${isToday ? " · today" : ""}</span><span>${list.filter(active).length || ""}</span></div>
+      <ul>${list.map(e => evHTML(e, d, clashMap)).join("") || '<li class="empty">—</li>'}</ul>`;
+  }
+  $("#weekView").innerHTML = w;
+
+  // Needs attention
+  $("#attnView").innerHTML = attn.length ? attn.map(({ e, reasons }) => `
+    <div class="att" data-id="${esc(e.id)}">
+      ${reasons.map(r => `<div class="why">${esc(r.text)}</div>`).join("")}
+      <div class="what">${esc(e.title)}</div>
+      <div class="meta">${fmtShort(e.start)}${e.allDay ? "" : " · " + fmtTime(e.start)}${e.primary ? " · " + esc(e.primary) : ""}${e.responsible ? " · responsible: " + esc(e.responsible) : ""}</div>
+      <div class="acts">
+        ${reasons.some(r => r.kind === "review") ? '<button class="sbtn pri" data-act="confirm">Looks right</button>' : ""}
+        ${reasons.some(r => r.kind === "action" || r.kind === "flag") ? '<button class="sbtn pri" data-act="done">Done</button>' : ""}
+        <button class="sbtn" data-act="edit">Edit</button>
+        ${reasons.some(r => r.kind !== "review") ? '<button class="sbtn" data-act="dismiss">Dismiss</button>' : ""}
+        ${reasons.some(r => r.kind === "review") ? '<button class="sbtn del" data-act="delete">Delete</button>' : ""}
+      </div></div>`).join("") : '<div class="brief"><h2>All clear 🎉</h2><p>Nothing needs attention in the next two weeks.</p></div>';
+}
+
+function setView(v){
+  view = v; LS.set("fp_view", v);
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  $("#todayView").classList.toggle("hidden", v !== "today");
+  $("#weekView").classList.toggle("hidden", v !== "week");
+  $("#attnView").classList.toggle("hidden", v !== "attn");
+}
+
+/* ---------- writing ---------- */
+const findEv = id => events.find(e => e.id === id);
+
+async function patchShared(e, fields, msg){
+  try {
+    await gcal("PATCH", calPath() + "/events/" + encodeURIComponent(e.id), { body: { extendedProperties: { shared: fields } } });
+    if (msg) toast(msg);
+    await loadEvents();
+  } catch (err) { if (err.message !== "not-connected") toast(err.message); }
+}
+// Done / Needs attention / Dismiss / Restore apply to this one occurrence only
+const setState = (e, state) => patchShared(e, { slState: state },
+  { done: "Marked done", attention: "Flagged for attention", dismissed: "Dismissed", "": "Restored" }[state]);
+
+async function removeEvent(e, all){
+  const id = all && e.seriesId ? e.seriesId : e.id;
+  try {
+    await gcal("DELETE", calPath() + "/events/" + encodeURIComponent(id));
+    toast("Deleted"); closeEditor(); await loadEvents();
+  } catch (err) { if (err.message !== "not-connected") toast(err.message); }
+}
+
+/* ---------- editor ---------- */
+function fillPeopleControls(sel){
+  const opts = (blank) => `<option value="">${blank}</option>` + config.people.map(p => `<option>${esc(p)}</option>`).join("");
+  $("#fPrimary").innerHTML = opts("— household —");
+  $("#fResp").innerHTML = opts("— nobody yet —");
+  $("#fInvolved").innerHTML = config.people.map(p => `<label><input type="checkbox" value="${esc(p)}"${sel.includes(p) ? " checked" : ""}> ${esc(p)}</label>`).join("")
+    || '<span class="empty">Add household members in ⚙️ Settings.</span>';
+}
+
+function syncFormVisibility(){
+  const allDay = $("#fAllDay").checked, multi = $("#fMulti").checked, rep = $("#fRepeat").value;
+  $("#timeRow").classList.toggle("hidden", allDay);
+  $("#endDateWrap").classList.toggle("hidden", !multi);
+  $("#untilWrap").classList.toggle("hidden", !rep);
+}
+
+function openEditor(e, presetDate){
+  if (!config.calendarId) return openSettings();
+  editing = e || null;
+  $("#edTitle").textContent = e ? "Edit commitment" : "Add commitment";
+  $("#edErr").textContent = "";
+  const d = e ? e.start : (presetDate || new Date());
+  $("#fTitle").value = e?.title || "";
+  $("#fAllDay").checked = !!e?.allDay;
+  const lastDay = e ? (e.allDay ? addDays(e.end, -1) : e.end) : d;
+  $("#fMulti").checked = !!e && ymd(lastDay) !== ymd(e.start);
+  $("#fDate").value = ymd(d);
+  $("#fEndDate").value = ymd(lastDay);
+  if (e && !e.allDay){ $("#fStart").value = hhmm(e.start); $("#fEnd").value = hhmm(e.end); }
+  else if (!e){ $("#fStart").value = "09:00"; $("#fEnd").value = "10:00"; }
+  $("#fRepeat").value = ""; $("#fUntil").value = "";
+  fillPeopleControls(e?.involved || []);
+  $("#fPrimary").value = e?.primary || person || "";
+  $("#fResp").value = e?.responsible || "";
+  $("#fSupport").value = e?.support || "";
+  $("#fAction").value = e?.action || "";
+  $("#fCat").value = e?.category || "";
+  $("#fLoc").value = e?.location || "";
+  $("#fNotes").value = e?.notes || "";
+  $("#scopeField").classList.toggle("hidden", !e?.recurring);
+  document.querySelector('input[name=scope][value=one]').checked = true;
+  $("#fRepeat").closest(".row").classList.toggle("hidden", !!e?.recurring);   // series pattern is kept when editing
+  $("#edDelWrap").classList.toggle("hidden", !e);
+  // Occurrence quick actions
+  const st = $("#edStates");
+  if (e){
+    st.innerHTML = [
+      e.review ? '<button type="button" class="sbtn pri" data-st="confirm">✓ Looks right</button>' : "",
+      e.state !== "done" ? '<button type="button" class="sbtn" data-st="done">Done</button>' : "",
+      e.state !== "attention" ? '<button type="button" class="sbtn" data-st="attention">Needs attention</button>' : "",
+      e.state !== "dismissed" ? '<button type="button" class="sbtn" data-st="dismissed">Dismiss</button>' : "",
+      e.state ? '<button type="button" class="sbtn" data-st="">Restore</button>' : "",
+      e.link ? `<a class="sbtn" href="${esc(e.link)}" target="_blank" rel="noopener" style="text-decoration:none">Open in Google</a>` : ""
+    ].join("");
+    st.classList.remove("hidden");
+  } else st.classList.add("hidden");
+  syncFormVisibility();
+  $("#editor").classList.remove("hidden");
+  if (!e) setTimeout(() => $("#fTitle").focus(), 50);
+}
+function closeEditor(){ $("#editor").classList.add("hidden"); editing = null; }
+
+function formData(){
+  const f = {
+    title: $("#fTitle").value.trim(), allDay: $("#fAllDay").checked, multi: $("#fMulti").checked,
+    date: $("#fDate").value, endDate: $("#fEndDate").value, start: $("#fStart").value, end: $("#fEnd").value,
+    repeat: $("#fRepeat").value, until: $("#fUntil").value,
+    primary: $("#fPrimary").value, involved: [...document.querySelectorAll("#fInvolved input:checked")].map(i => i.value),
+    responsible: $("#fResp").value, support: $("#fSupport").value.trim(), action: $("#fAction").value.trim(),
+    category: $("#fCat").value.trim(), location: $("#fLoc").value.trim(), notes: $("#fNotes").value.trim()
+  };
+  if (!f.multi || !f.endDate || f.endDate < f.date) f.endDate = f.date;
+  return f;
+}
+
+function timesBody(f, dateStr, endDateStr){
+  if (f.allDay) return { start: { date: dateStr }, end: { date: ymd(addDays(parseYmd(endDateStr), 1)) } };
+  let s = f.start || "09:00", e = f.end || "";
+  let endDay = endDateStr;
+  if (!e || (endDay === dateStr && e <= s)){       // default / fix an end before the start: one hour
+    const t = new Date(parseYmd(dateStr)); const [h, m] = s.split(":").map(Number);
+    t.setHours(h + 1, m); e = hhmm(t); endDay = ymd(t);
+  }
+  return { start: { dateTime: `${dateStr}T${s}:00`, timeZone: TZ }, end: { dateTime: `${endDay}T${e}:00`, timeZone: TZ } };
+}
+
+function rrule(f){
+  if (!f.repeat) return null;
+  let r = { weekly: "RRULE:FREQ=WEEKLY", fortnightly: "RRULE:FREQ=WEEKLY;INTERVAL=2", monthly: "RRULE:FREQ=MONTHLY" }[f.repeat];
+  if (f.until){
+    const u = addDays(parseYmd(f.until), 1);   // include the "until" day itself
+    r += ";UNTIL=" + (f.allDay ? f.until.replace(/-/g, "") : u.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, ""));
+  }
+  return [r];
+}
+
+function sharedProps(f){
+  const involved = [...new Set([...f.involved, ...(f.primary ? [f.primary] : [])])];
+  return { slPrimary: f.primary, slInvolved: involved.join(","), slResponsible: f.responsible,
+           slSupport: f.support, slAction: f.action, slCategory: f.category };
+}
+
+async function save(ev){
+  ev.preventDefault();
+  const f = formData();
+  if (!f.title){ $("#edErr").textContent = "Give it a name"; return; }
+  if (!f.date){ $("#edErr").textContent = "Pick a date"; return; }
+  const base = { summary: f.title, location: f.location, description: f.notes };
+  const btn = $("#edSave"); btn.disabled = true;
+  try {
+    if (!editing){
+      const body = { ...base, ...timesBody(f, f.date, f.endDate), extendedProperties: { shared: { ...sharedProps(f), slState: "" } } };
+      const rr = rrule(f); if (rr) body.recurrence = rr;
+      await gcal("POST", calPath() + "/events", { body });
+      toast("Added");
+    } else {
+      const scopeAll = editing.recurring && document.querySelector("input[name=scope]:checked").value === "all";
+      let id = editing.id, dateStr = f.date, endStr = f.endDate;
+      if (scopeAll){
+        // Whole series: keep the series' own start date, apply the new times and details
+        const master = await gcal("GET", calPath() + "/events/" + encodeURIComponent(editing.seriesId));
+        id = editing.seriesId;
+        const mStart = master.start.date || master.start.dateTime.slice(0, 10);
+        const spanDays = Math.round((parseYmd(f.endDate) - parseYmd(f.date)) / DAY);
+        dateStr = mStart; endStr = ymd(addDays(parseYmd(mStart), spanDays));
+      }
+      const body = { ...base, ...timesBody(f, dateStr, endStr), extendedProperties: { shared: sharedProps(f) } };
+      if (f.allDay){ body.start.dateTime = null; body.end.dateTime = null; body.start.timeZone = null; body.end.timeZone = null; }
+      else { body.start.date = null; body.end.date = null; }
+      await gcal("PATCH", calPath() + "/events/" + encodeURIComponent(id), { body });
+      toast(scopeAll ? "Updated every occurrence" : "Updated");
+    }
+    closeEditor();
+    await loadEvents();
+  } catch (err) {
+    if (err.message !== "not-connected") $("#edErr").textContent = err.message;
+    else $("#edErr").textContent = "Calendar connection timed out – tap Reconnect, then Save again.";
+  } finally { btn.disabled = false; }
+}
+
+/* ---------- settings ---------- */
+async function openSettings(){
+  $("#sErr").textContent = "";
+  $("#sPeople").value = config.people.join(", ");
+  $("#sWho").textContent = auth.currentUser ? "Signed in as " + auth.currentUser.email : "";
+  const sel = $("#sCal");
+  sel.innerHTML = `<option value="">Loading calendars…</option>`;
+  $("#settings").classList.remove("hidden");
+  try {
+    await loadCalendars();
+    sel.innerHTML = '<option value="">— choose —</option>' + calendars.map(c =>
+      `<option value="${esc(c.id)}">${esc(c.name)}${c.primary ? " (your main calendar)" : ""}</option>`).join("");
+    sel.value = config.calendarId || "";
+    if (config.calendarId && !sel.value){
+      sel.insertAdjacentHTML("beforeend", `<option value="${esc(config.calendarId)}">${esc(config.calendarName || "Current family calendar")}</option>`);
+      sel.value = config.calendarId;
+    }
+  } catch (e) {
+    sel.innerHTML = config.calendarId ? `<option value="${esc(config.calendarId)}">${esc(config.calendarName || config.calendarId)}</option>` : '<option value="">Connect first</option>';
+    $("#sErr").textContent = e.message === "not-connected" ? "Tap Reconnect first to load your calendars." : e.message;
+  }
+}
+
+async function saveSettings(){
+  const calId = $("#sCal").value;
+  const people = [...new Set(split($("#sPeople").value))];
+  if (!calId){ $("#sErr").textContent = "Choose the family calendar"; return; }
+  const cal = calendars.find(c => c.id === calId);
+  try {
+    await setDoc(configRef(), { calendarId: calId, calendarName: cal?.name || config.calendarName || "", people }, { merge: true });
+    $("#settings").classList.add("hidden");
+    toast("Saved");
+  } catch (e) {
+    $("#sErr").textContent = e.code === "permission-denied" ? "Your account isn't on the family list in Firebase." : (e.message || e);
+  }
+}
+
+/* ---------- start-up ---------- */
+function startConfig(){
+  unsubConfig?.();
+  unsubConfig = onSnapshot(configRef(), snap => {
+    const prev = config.calendarId;
+    config = { calendarId: "", calendarName: "", people: [], ...(snap.data() || {}) };
+    if (person && !config.people.includes(person)) person = "";
+    $("#needCal").classList.toggle("hidden", !!config.calendarId);
+    $("#addBtn").classList.toggle("hidden", !config.calendarId);
+    render();
+    if (config.calendarId && config.calendarId !== prev) loadEvents();
+  }, e => {
+    if (e.code === "permission-denied"){
+      showLogin(`${auth.currentUser?.email || "This account"} isn't on the family list yet. Ask whoever set up the planner to add it, or use a different Google account.`);
+    } else toast("Sync problem: " + (e.code || e.message));
+  });
+}
+
+function showLogin(msg){
+  $("#loginMsg").textContent = msg || "";
+  $("#googleBtn").textContent = auth.currentUser ? "Use a different Google account" : "Sign in with Google";
+  $("#login").classList.remove("hidden");
+}
+
+function startPolling(){
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => { if (document.visibilityState === "visible") loadEvents(); }, 60000);
+}
+
+getRedirectResult(auth).then(res => {
+  if (res){ saveToken(GoogleAuthProvider.credentialFromResult(res)?.accessToken); loadEvents(); }
+}).catch(() => {});
+
+onAuthStateChanged(auth, user => {
+  if (user && !user.isAnonymous){
+    me = (user.displayName || user.email || "").split(/[ @]/)[0];
+    $("#login").classList.add("hidden");
+    showReconnect(!token());
+    startConfig();
+    startPolling();
+  } else {
+    unsubConfig?.(); clearInterval(pollTimer);
+    events = []; config = { calendarId: "", calendarName: "", people: [] };
+    clearToken(); render();
+    showLogin();
+  }
+});
+
+/* ---------- wiring ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
+$("#googleBtn").onclick = async () => { if (auth.currentUser && $("#loginMsg").textContent){ await signOut(auth); } connect(); };
+$("#reconnectBtn").onclick = connect;
+$("#needCalBtn").onclick = openSettings;
+$("#settingsBtn").onclick = openSettings;
+$("#refreshBtn").onclick = () => token() ? loadEvents().then(() => toast("Up to date")) : connect();
+$("#addBtn").onclick = () => openEditor(null, view === "week" && +weekStart !== +weekStartOf(new Date()) ? weekStart : null);
+$("#sClose").onclick = () => $("#settings").classList.add("hidden");
+$("#sSave").onclick = saveSettings;
+$("#sSignOut").onclick = () => { $("#settings").classList.add("hidden"); signOut(auth); };
+$("#edCancel").onclick = closeEditor;
+$("#evForm").onsubmit = save;
+["#fAllDay", "#fMulti", "#fRepeat"].forEach(s => $(s).addEventListener("change", syncFormVisibility));
+$("#fPrimary").addEventListener("change", e => {
+  const box = document.querySelector(`#fInvolved input[value="${CSS.escape(e.target.value)}"]`);
+  if (box) box.checked = true;
+});
+$("#edDelete").onclick = () => {
+  if (!editing) return;
+  if (editing.recurring){
+    const all = confirm(`Delete EVERY occurrence of “${editing.title}”?\n\nOK = every occurrence\nCancel = choose just this one`);
+    if (all) return removeEvent(editing, true);
+    if (confirm(`Delete just this one (${fmtShort(editing.start)})?`)) removeEvent(editing, false);
+  } else if (confirm(`Delete “${editing.title}”?`)) removeEvent(editing, false);
+};
+$("#edStates").addEventListener("click", ev => {
+  const b = ev.target.closest("[data-st]"); if (!b || !editing) return;
+  const e = editing; closeEditor();
+  if (b.dataset.st === "confirm") patchShared(e, { slReview: "" }, "Confirmed");
+  else setState(e, b.dataset.st);
+});
+$("#people").addEventListener("click", ev => {
+  const b = ev.target.closest(".pchip"); if (!b) return;
+  person = b.dataset.p; LS.set("fp_person", person); render();
+});
+document.querySelector("main").addEventListener("click", ev => {
+  const wk = ev.target.closest("[data-wk]");
+  if (wk){
+    const n = +wk.dataset.wk;
+    weekStart = n === 0 ? weekStartOf(new Date()) : addDays(weekStart, 7 * n);
+    render(); loadEvents(); return;
+  }
+  const act = ev.target.closest("[data-act]");
+  if (act){
+    const e = findEv(act.closest("[data-id]").dataset.id); if (!e) return;
+    const a = act.dataset.act;
+    if (a === "confirm") patchShared(e, { slReview: "" }, "Confirmed");
+    else if (a === "done") setState(e, "done");
+    else if (a === "dismiss") setState(e, "dismissed");
+    else if (a === "edit") openEditor(e);
+    else if (a === "delete" && confirm(`Delete “${e.title}”?`)) removeEvent(e, false);
+    return;
+  }
+  const li = ev.target.closest(".ev");
+  if (li){ const e = findEv(li.dataset.id); if (e) openEditor(e); }
+});
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") loadEvents(); });
+
+setView(view);
+render();
+</script>
+<script>
+/* Update check – if the website has a newer version than the copy on this phone, offer a one-tap update.
+   When you change this file, change APP_VERSION too (any new text will do). */
+(function () {
+  const APP_VERSION = "2026-10-16b";
+  let shown = false;
+  async function check() {
+    if (shown || !navigator.onLine || location.protocol === "file:") return;
+    try {
+      const r = await fetch(location.pathname + "?vcheck=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/APP_VERSION = "([^"]+)"/);
+      if (m && m[1] !== APP_VERSION) {
+        shown = true;
+        const b = document.createElement("button");
+        b.className = "update";
+        b.textContent = "New version available – tap to update";
+        b.onclick = () => location.replace(location.pathname + "?v=" + encodeURIComponent(m[1]));
+        document.body.appendChild(b);
+      }
+    } catch (e) {}
+  }
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  setInterval(check, 30 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
