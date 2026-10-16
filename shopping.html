@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2e7d32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Super List">
+<title>Super List</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2320;--muted:#7a847e;--accent:#2e7d32;--accent2:#e8f3e9;--line:#e3e6e1;--danger:#c62828;--skip:#e0a800}
+@media (prefers-color-scheme:dark){:root{--bg:#121513;--card:#1c201d;--ink:#e8ece9;--muted:#8d978f;--accent:#43a047;--accent2:#1f2e21;--line:#2b312d;--danger:#ef5350;--skip:#f2c230}}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);padding-top:env(safe-area-inset-top)}
+.top{display:flex;align-items:center;gap:12px;padding:12px 16px 4px;max-width:640px;margin:0 auto}
+.top h1{font-size:20px;margin:0;flex:1}
+#count{font-size:14px;opacity:.9}
+.iconbtn{background:none;border:0;color:inherit;font-size:20px;padding:6px;cursor:pointer}
+.tabs{display:flex;max-width:640px;margin:0 auto}
+.tabs button{flex:1;background:none;border:0;color:rgba(255,255,255,.75);font:600 15px system-ui,sans-serif;padding:10px;border-bottom:3px solid transparent;cursor:pointer}
+.tabs button.on{color:#fff;border-color:#fff}
+main{max-width:640px;margin:0 auto;padding:12px 16px 110px}
+.bar{display:flex;gap:8px;margin-bottom:12px}
+input,select{flex:1;min-width:0;font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.btn{font:600 15px system-ui,sans-serif;padding:12px 16px;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;flex:none}
+.btn.ghost{background:var(--accent2);color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 14px}
+.chips:empty{display:none}
+.chiphead{width:100%;font-size:12px;color:var(--muted);margin:0 2px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:18px;padding:7px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{opacity:.45}
+.chip.add{border-style:dashed;color:var(--muted)}
+ul{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 4px 8px 12px;margin-bottom:6px;transition:background .4s}
+.item .txt{flex:1;word-break:break-word;padding:4px 0}
+.item .by{display:block;font-size:12px;color:var(--muted)}
+.item .del{background:none;border:0;color:var(--muted);font-size:18px;padding:8px 10px;cursor:pointer}
+.item .qty{font-weight:700;color:var(--accent);margin-left:6px;text-decoration:none;display:inline-block}
+.qtyctl{display:flex;gap:4px;flex:none}
+.qbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 17px/1 system-ui,sans-serif;padding:0;cursor:pointer}
+.qbtn:disabled{opacity:.3;cursor:default}
+.item.ticked{opacity:.65}
+.item.ticked .txt{text-decoration:line-through;color:var(--muted)}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);flex:none;display:grid;place-items:center;font-size:15px;color:#fff}
+.item.ticked .check{background:var(--accent)}
+.check.skip{border-color:var(--skip)}
+.item.ticked .check.skip{background:var(--skip)}
+.skipbtn{width:26px;height:26px;border-radius:50%;border:2px solid var(--skip);background:none;flex:none;padding:0;cursor:pointer;margin-right:2px}
+.update{position:fixed;left:50%;top:calc(110px + env(safe-area-inset-top));transform:translateX(-50%);z-index:25;background:var(--accent);color:#fff;border:0;border-radius:20px;padding:10px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer}
+.shop .item{cursor:pointer;user-select:none;-webkit-user-select:none}
+.item.flash{background:var(--accent2)}
+.section{font-size:12px;color:var(--muted);margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.05em}
+.empty{text-align:center;color:var(--muted);padding:32px 0}
+.footer{position:fixed;left:0;right:0;bottom:0;padding:16px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),var(--bg) 35%);display:flex;justify-content:center}
+.footer .btn{width:100%;max-width:608px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:20;padding:16px}
+.panel{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:400px}
+.panel h2{margin:0 0 4px;font-size:20px}
+.panel p{margin:4px 0;color:var(--muted);font-size:14px}
+.panel label{display:block;font-size:14px;color:var(--muted);margin:14px 0 4px}
+.panel input{width:100%}
+.panel .btn{width:100%;margin-top:18px}
+.panel .err{color:var(--danger)}
+.panel .err:empty{display:none}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;max-width:90vw;text-align:center;display:flex;gap:12px;align-items:center}
+.toast.on{opacity:1}
+.toast button{background:none;border:0;color:#9be59f;font:600 14px system-ui,sans-serif;padding:0;cursor:pointer}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <a class="iconbtn" href="./" title="Home" aria-label="Home" style="text-decoration:none">🏠</a>
+    <h1>🛒 Super List</h1>
+    <span id="count"></span>
+    <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="tabs">
+    <button data-mode="add">Add items</button>
+    <button data-mode="shop">Shopping</button>
+  </div>
+</header>
+
+<main>
+  <section id="addView">
+    <form id="addForm" class="bar">
+      <input id="addInput" placeholder="Add an item…" autocomplete="off" autocorrect="off" enterkeyhint="done">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <ul id="addList"></ul>
+  </section>
+
+  <section id="shopView" class="shop hidden">
+    <div class="bar">
+      <select id="storeSel" aria-label="Supermarket"></select>
+      <button class="btn ghost" id="locBtn" title="Find nearest store" aria-label="Find nearest store">📍</button>
+      <button class="btn ghost" id="newStoreBtn" title="Add a store" aria-label="Add a store">＋</button>
+    </div>
+    <ul id="shopList"></ul>
+  </section>
+</main>
+
+<div class="footer hidden" id="footer">
+  <button class="btn" id="finishBtn">Finish shop &amp; clear ticked</button>
+</div>
+
+<div class="overlay hidden" id="login">
+  <div class="panel">
+    <h2>🛒 Super List</h2>
+    <p>Sign in with your Google account to see the family shopping list.</p>
+    <p id="loginMsg" class="err"></p>
+    <button class="btn" id="googleBtn" type="button">Sign in with Google</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, updateDoc, deleteDoc, setDoc, onSnapshot, writeBatch, increment, arrayUnion
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCNbFZRvipyDzV03dms_oDo7kCsDmOoXZY",
+  authDomain: "super-list-55399.firebaseapp.com",
+  projectId: "super-list-55399",
+  storageBucket: "super-list-55399.firebasestorage.app",
+  messagingSenderId: "147336745555",
+  appId: "1:147336745555:web:e2fde89202a616ca702ca6"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+/* ---------- built-in grocery vocabulary ----------
+   Categories are listed in a typical NZ supermarket walking order; this order is only
+   used until the app has learned the real layout of a store.
+   To add your own items, just add them to these lists (separated by |). */
+const VOCAB_RAW = {
+  "Fruit & veg": "Apples|Bananas|Oranges|Mandarins|Lemons|Limes|Pears|Kiwifruit|Gold kiwifruit|Grapes|Strawberries|Blueberries|Raspberries|Watermelon|Rockmelon|Pineapple|Mango|Avocados|Feijoas|Plums|Peaches|Nectarines|Apricots|Cherries|Tamarillos|Passionfruit|Potatoes|Agria potatoes|Baby potatoes|Kūmara|Carrots|Onions|Red onions|Spring onions|Shallots|Garlic|Ginger|Broccoli|Cauliflower|Cabbage|Red cabbage|Lettuce|Iceberg lettuce|Cos lettuce|Salad mix|Baby spinach|Spinach|Silverbeet|Kale|Rocket|Celery|Cucumber|Telegraph cucumber|Tomatoes|Cherry tomatoes|Capsicum|Red capsicum|Courgettes|Pumpkin|Butternut|Eggplant|Mushrooms|Corn|Green beans|Peas|Snow peas|Asparagus|Beetroot|Parsnips|Leeks|Bok choy|Brussels sprouts|Chillies|Coriander|Parsley|Basil|Mint|Rosemary|Thyme|Bean sprouts|Radishes|Coleslaw mix|Stir fry vegetables",
+  "Bakery": "Bread|White bread|Wholemeal bread|Grain bread|Sourdough|Toast bread|Sandwich bread|Bread rolls|Burger buns|Hot dog buns|Wraps|Tortillas|Pita bread|Naan|Bagels|Crumpets|English muffins|Croissants|Muffins|Hot cross buns|Garlic bread|Scones|Fruit loaf|Pikelets",
+  "Deli": "Ham|Shaved ham|Salami|Pastrami|Roast chicken|Hummus|Dips|Olives|Sushi|Coleslaw|Potato salad|Pesto|Antipasto",
+  "Meat & seafood": "Chicken breast|Chicken thighs|Chicken drumsticks|Chicken wings|Whole chicken|Mince|Beef mince|Chicken mince|Pork mince|Steak|Scotch fillet|Rump steak|Beef schnitzel|Stewing steak|Roast beef|Lamb chops|Lamb leg|Lamb shanks|Lamb rack|Pork chops|Pork belly|Pork roast|Sausages|Bacon|Saveloys|Cheerios|Meatballs|Salmon|Fish fillets|Prawns|Smoked salmon|Mussels|Tuna steaks",
+  "Dairy & eggs": "Milk|Trim milk|Lite milk|Full cream milk|Oat milk|Almond milk|Soy milk|Lactose free milk|Cream|Sour cream|Butter|Margarine|Spreadable butter|Cheese|Tasty cheese|Edam|Colby|Mozzarella|Parmesan|Grated cheese|Sliced cheese|Cream cheese|Cottage cheese|Brie|Camembert|Feta|Halloumi|Yoghurt|Greek yoghurt|Kids yoghurt|Custard|Eggs|Free range eggs",
+  "Chilled": "Fresh pasta|Gnocchi|Tofu|Ready meals|Fresh soup|Pastry|Puff pastry|Flaky pastry|Orange juice|Apple juice|Kombucha|Dumplings",
+  "Breakfast & spreads": "Weet-Bix|Cereal|Cornflakes|Rice bubbles|Muesli|Porridge|Rolled oats|Granola|Peanut butter|Jam|Honey|Marmite|Vegemite|Chocolate spread|Maple syrup|Golden syrup|Coffee|Instant coffee|Coffee beans|Tea|Green tea|Herbal tea|Milo|Hot chocolate",
+  "Pantry": "Pasta|Spaghetti|Penne|Macaroni|Lasagne sheets|Egg noodles|Rice noodles|Instant noodles|Rice|Basmati rice|Jasmine rice|Brown rice|Sushi rice|Couscous|Quinoa|Pasta sauce|Tomato paste|Tinned tomatoes|Baked beans|Tinned spaghetti|Chickpeas|Kidney beans|Black beans|Lentils|Tinned tuna|Tinned salmon|Tinned corn|Tinned fruit|Coconut milk|Coconut cream|Stock|Chicken stock|Beef stock|Vegetable stock|Stock cubes|Gravy|Soup|Olive oil|Vegetable oil|Canola oil|Cooking spray|Vinegar|Balsamic vinegar|Soy sauce|Tomato sauce|BBQ sauce|Sweet chilli sauce|Mayonnaise|Mustard|Relish|Pickles|Gherkins|Salad dressing|Worcestershire sauce|Oyster sauce|Fish sauce|Hot sauce|Curry paste|Curry powder|Salt|Pepper|Crushed garlic|Mixed herbs|Spices|Paprika|Cumin|Cinnamon|Oregano|Breadcrumbs|Taco kit|Taco seasoning|Salsa|Nori|Rice paper|Crackers",
+  "Baking": "Flour|Plain flour|Self raising flour|Sugar|Brown sugar|Icing sugar|Caster sugar|Baking powder|Baking soda|Yeast|Vanilla essence|Cocoa|Chocolate chips|Cooking chocolate|Desiccated coconut|Raisins|Sultanas|Dates|Almonds|Walnuts|Cake mix|Sprinkles|Food colouring|Gelatine|Cornflour|Condensed milk|Jelly crystals",
+  "Snacks": "Chips|Potato chips|Corn chips|Rice crackers|Biscuits|Cookies|Chocolate biscuits|Shortbread|Muesli bars|Fruit bars|Popcorn|Pretzels|Chocolate|Lollies|Chewing gum|Scroggin|Dried fruit|Peanuts|Cashews|Mixed nuts|Fruit leathers",
+  "Drinks": "Water|Sparkling water|Soft drink|Cola|Lemonade|Ginger beer|Juice|Cordial|Sports drink|Energy drink|Iced tea|Beer|Wine|Cider",
+  "Household": "Toilet paper|Paper towels|Tissues|Dishwashing liquid|Dishwasher tablets|Laundry powder|Laundry liquid|Fabric softener|Bleach|Spray cleaner|Bathroom cleaner|Glass cleaner|Sponges|Scrubbers|Cloths|Rubbish bags|Bin liners|Compost bags|Cling wrap|Tin foil|Baking paper|Zip lock bags|Sandwich bags|Light bulbs|Batteries|Matches|Candles|Air freshener|Fly spray|Rubber gloves|Napkins|Paper plates",
+  "Health & beauty": "Toothpaste|Toothbrushes|Dental floss|Mouthwash|Shampoo|Conditioner|Body wash|Soap|Hand wash|Deodorant|Razors|Shaving cream|Sunscreen|Moisturiser|Lip balm|Cotton buds|Cotton pads|Plasters|Paracetamol|Pain relief|Vitamins|Tampons|Pads|Hair ties|Hand sanitiser",
+  "Baby": "Nappies|Baby wipes|Baby food|Formula",
+  "Pet": "Dog food|Cat food|Dog biscuits|Cat litter|Pet treats",
+  "Frozen": "Frozen peas|Frozen corn|Frozen mixed veg|Frozen berries|Frozen chips|Hash browns|Wedges|Fish fingers|Chicken nuggets|Frozen pizza|Ice cream|Ice blocks|Frozen dumplings|Frozen pies|Frozen fish|Frozen prawns|Ice"
+};
+const CATS = Object.keys(VOCAB_RAW);
+
+/* ---------- small helpers ---------- */
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch {} }
+};
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+
+// Make the last word singular so "Eggs"/"egg", "Tomatoes"/"tomato", "Strawberries"/"strawberry" match
+// (keys only – never shown – so "strawberry", "strawberries", "cookie" and "cookies" all line up)
+function singular(w){
+  if (w.length <= 2) return w;
+  if (w.endsWith("ies") && w.length >= 4) w = w.slice(0, -3) + "i";
+  else if (/(oes|ches|shes|xes|sses)$/.test(w)) w = w.slice(0, -2);
+  else if (/(ss|us|is)$/.test(w)) { /* glass, hummus, … */ }
+  else if (w.endsWith("s") && w.length > 3) w = w.slice(0, -1);
+  if (w.length > 3 && w.endsWith("y")) w = w.slice(0, -1) + "i";
+  else if (w.endsWith("ie")) w = w.slice(0, -1);
+  return w;
+}
+// Matching key: no accents (kūmara = kumara), lowercase, no punctuation, singular
+const norm = t => String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  .replace(/[^a-z0-9 ]+/g, " ").trim().replace(/\s+/g, " ")
+  .replace(/[a-z]+$/, singular);
+const keyOf = t => norm(t) || String(t).trim().toLowerCase();
+
+// Edit distance with an early exit once it exceeds max
+function lev(a, b, max){
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++){
+    const cur = [i]; let rowMin = i;
+    for (let j = 1; j <= b.length; j++){
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+      if (cur[j] < rowMin) rowMin = cur[j];
+    }
+    if (rowMin > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// How many typos to tolerate for a word of this length
+const tol = n => n >= 8 ? 2 : n >= 5 ? 1 : 0;
+
+let toastTimer;
+function toast(msg, action){
+  const t = $("#toast");
+  t.innerHTML = `<span>${esc(msg)}</span>` + (action ? `<button type="button">${esc(action.label)}</button>` : "");
+  if (action) t.querySelector("button").onclick = () => { t.classList.remove("on"); t.style.pointerEvents = "none"; action.fn(); };
+  t.style.pointerEvents = action ? "auto" : "none";
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove("on"); t.style.pointerEvents = "none"; }, action ? 5000 : 2600);
+}
+function fail(e){
+  console.error(e);
+  if (e?.code === "permission-denied"){
+    stopSync();
+    showLogin(`${auth.currentUser?.email || "This account"} isn't on the family list yet. Ask whoever set up the list to add it, or use a different Google account.`);
+    return;
+  }
+  toast("Sync problem: " + (e?.code || e?.message || e));
+}
+function distM(lat1, lng1, lat2, lng2){
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r) * Math.cos(lat2*r) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+/* ---------- state ---------- */
+const HOUSEHOLD = "family";   // everyone allowed in by the security rules shares this one list
+let me = "";
+let storeId = LS.get("sl_store") || "";
+let mode = LS.get("sl_mode") || "add";
+let items = [];
+let stores = [];
+let words = [];   // family's own vocabulary + how often each word is used
+let unsubs = [];
+
+const BUILTIN = [];
+CATS.forEach(cat => VOCAB_RAW[cat].split("|").forEach(text => BUILTIN.push({ text, key: keyOf(text), cat, uses: 0 })));
+let vocab = new Map();
+function rebuildVocab(){
+  vocab = new Map(BUILTIN.map(v => [v.key, { ...v }]));
+  words.forEach(w => {
+    const v = vocab.get(w.key);
+    if (v) v.uses = w.uses || 0;
+    else vocab.set(w.key, { text: w.text, key: w.key, cat: w.cat || null, uses: w.uses || 0, family: true });
+  });
+}
+rebuildVocab();
+
+const famDoc = () => doc(db, "households", HOUSEHOLD);
+const itemsCol = () => collection(famDoc(), "items");
+const storesCol = () => collection(famDoc(), "stores");
+const wordsCol = () => collection(famDoc(), "words");
+const historyCol = () => collection(famDoc(), "history");
+const itemRef = id => doc(itemsCol(), id);
+const storeRef = id => doc(storesCol(), id);
+const wordRef = key => doc(wordsCol(), (key.slice(0, 200) || "x").replace(/^\.+$/, "x").replace(/^__(.*)__$/, "_$1_"));
+
+/* ---------- live sync ---------- */
+function stopSync(){ unsubs.forEach(u => u()); unsubs = []; }
+function start(){
+  stopSync();
+  unsubs.push(onSnapshot(itemsCol(), snap => {
+    items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render(); renderChips();
+  }, fail));
+  unsubs.push(onSnapshot(storesCol(), snap => {
+    stores = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    renderStores(); render();
+  }, fail));
+  unsubs.push(onSnapshot(wordsCol(), snap => {
+    words = snap.docs.map(d => d.data()).filter(w => w.key);
+    rebuildVocab(); renderChips(); render();
+  }, fail));
+}
+
+/* ---------- suggestions & autocorrect ---------- */
+const onList = key => items.some(i => !i.ticked && i.key === key);
+
+function suggest(raw){
+  const q = norm(raw);
+  if (!q) return [];
+  const out = [];
+  for (const v of vocab.values()){
+    let s;
+    if (v.key === q) s = 0;
+    else if (v.key.startsWith(q)) s = 1;
+    else if (v.key.split(" ").some(w => w.startsWith(q))) s = 2;
+    else if (q.length >= 3 && v.key.includes(q)) s = 3;
+    else {
+      const t = tol(q.length); if (!t) continue;
+      const d = Math.min(lev(q, v.key, t), lev(q, v.key.slice(0, q.length), t));
+      if (d > t) continue;
+      s = 4 + d;
+    }
+    out.push({ v, s });
+  }
+  out.sort((a, b) => a.s - b.s || b.v.uses - a.v.uses || a.v.key.length - b.v.key.length);
+  return out.slice(0, 6).map(o => o.v);
+}
+
+// The family's most-used items that aren't on the list right now
+function frequent(){
+  return [...vocab.values()].filter(v => v.uses > 0 && !onList(v.key))
+    .sort((a, b) => b.uses - a.uses).slice(0, 8);
+}
+
+// What a typed entry becomes: exact match → standard name; one clear typo match → corrected; else as typed
+function resolve(raw){
+  const text = raw.trim().replace(/\s+/g, " ");
+  const q = keyOf(text);
+  const exact = vocab.get(q);
+  if (exact) return { text: exact.text, cat: exact.cat };
+  const t = tol(q.length);
+  if (t){
+    let best = null, bd = t + 1, tie = false;
+    for (const v of vocab.values()){
+      const d = lev(q, v.key, t);
+      if (d < bd){ bd = d; best = v; tie = false; }
+      else if (d === bd && best) tie = true;
+    }
+    if (best && bd <= t && !tie) return { text: best.text, cat: best.cat, corrected: true, original: text };
+  }
+  return { text: text.charAt(0).toUpperCase() + text.slice(1), cat: null };
+}
+
+/* ---------- quantities ---------- */
+// Items saved before quantities existed have no qty field: treat them as 1
+const qtyOf = it => Math.max(1, Math.floor(Number(it?.qty)) || 1);
+const qtyTag = n => n > 1 ? ` ×${n}` : "";
+
+// Split a typed entry into name + quantity: "2 milk", "2x milk", "x2 milk", "milk 2", "milk x2", "milk×2"
+function parseQty(raw){
+  const s = String(raw).trim().replace(/\s+/g, " ");
+  if (vocab.has(keyOf(s))) return { name: s, qty: 1 };   // a known item that contains a number
+  const pats = [
+    [/^(\d{1,2}) ?[x×]? (.+)$/i, 1, 2],
+    [/^[x×] ?(\d{1,2}) (.+)$/i, 1, 2],
+    [/^(.+?) [x×]? ?(\d{1,2})$/i, 2, 1],
+    [/^(.+?)[x×](\d{1,2})$/i, 2, 1],
+  ];
+  for (const [re, qi, ni] of pats){
+    const m = s.match(re);
+    if (!m) continue;
+    const q = parseInt(m[qi], 10), name = m[ni].trim();
+    if (q >= 1 && name.replace(/[^a-zà-ÿ]/gi, "").length >= 3) return { name, qty: q };   // "7 up" stays as typed
+  }
+  return { name: s, qty: 1 };
+}
+
+function renderChips(){
+  const box = $("#chips");
+  const { name: raw, qty } = parseQty($("#addInput").value);
+  const list = raw ? suggest(raw) : frequent();
+  if (!list.length && !raw){ box.innerHTML = ""; return; }
+  let h = raw ? "" : '<span class="chiphead">Often bought – tap to add</span>';
+  h += list.map(v => `<button type="button" class="chip${onList(v.key) ? " on" : ""}" data-key="${esc(v.key)}">${onList(v.key) ? "✓ " : ""}${esc(v.text)}${qtyTag(qty)}</button>`).join("");
+  if (raw && !vocab.has(keyOf(raw))) h += `<button type="button" class="chip add" data-free="1">＋ "${esc(raw)}"${qtyTag(qty)}</button>`;
+  box.innerHTML = h;
+}
+
+function recordWord(text, key, cat){
+  setDoc(wordRef(key), { text, key, cat: cat || null, uses: increment(1), last: Date.now() }, { merge: true }).catch(fail);
+}
+
+/* ---------- layout prediction ---------- */
+const catOf = (key, it) => (it && it.cat) || vocab.get(key)?.cat || null;
+
+// Score 0..1 = where in the store an item usually gets picked up (0 = first).
+function scoreFor(key, cat){
+  const st = stores.find(s => s.id === storeId);
+  const own = st?.scores?.[key];
+  if (own != null) return own;                                   // learned at this store
+  if (cat && st?.scores){                                        // same aisle as similar items here
+    const same = Object.entries(st.scores).filter(([k]) => catOf(k) === cat).map(([, v]) => v);
+    if (same.length) return avg(same) + 0.0001;
+  }
+  const others = stores.map(s => s.scores?.[key]).filter(v => v != null);
+  if (others.length) return avg(others);                         // learned at other stores
+  if (cat) return CATS.indexOf(cat) / (CATS.length - 1);         // typical store order
+  return 2;                                                      // unknown: put at the end
+}
+
+/* ---------- rendering ---------- */
+const byNewest = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+const byTick = (a, b) => (a.tickedAt || 0) - (b.tickedAt || 0);
+
+function rowHTML(it, shop){
+  const cat = catOf(it.key, it);
+  const who = (it.addedByAll && it.addedByAll.length ? it.addedByAll : [it.addedBy]).filter(Boolean).join(", ");
+  const sub = [shop ? cat : null, who].filter(Boolean).join(" · ");
+  const q = qtyOf(it);
+  // Add mode: −/+ quantity. Shopping mode: yellow circle = in the trolley, but out of the usual order
+  const ctl = it.ticked ? "" : shop
+    ? `<button class="skipbtn" data-skip aria-label="In trolley – picked up out of order (not used to learn the layout)" title="Got it, but out of the usual order"></button>`
+    : `<span class="qtyctl">
+      <button class="qbtn" data-dec aria-label="One less"${q <= 1 ? " disabled" : ""}>−</button>
+      <button class="qbtn" data-inc aria-label="One more">+</button>
+    </span>`;
+  return `<li class="item${it.ticked ? " ticked" : ""}" data-id="${esc(it.id)}">
+    ${shop ? `<span class="check${it.ticked && it.outOfOrder ? " skip" : ""}">${it.ticked ? "✓" : ""}</span>` : ""}
+    <span class="txt">${esc(it.text)}${q > 1 ? `<span class="qty">×${q}</span>` : ""}${sub ? `<span class="by">${esc(sub)}</span>` : ""}</span>
+    ${ctl}
+    <button class="del" data-del aria-label="Delete">✕</button>
+  </li>`;
+}
+
+function render(){
+  const open = items.filter(i => !i.ticked);
+  const done = items.filter(i => i.ticked).sort(byTick);
+  $("#count").textContent = open.length ? `${open.length} to get` : "";
+
+  let h = open.slice().sort(byNewest).map(i => rowHTML(i, false)).join("")
+       || '<li class="empty">The list is empty – add something!</li>';
+  if (done.length) h += '<li class="section">In the trolley</li>' + done.map(i => rowHTML(i, false)).join("");
+  $("#addList").innerHTML = h;
+
+  const sc = new Map(open.map(i => [i.id, scoreFor(i.key, catOf(i.key, i))]));
+  const sorted = open.slice().sort((a, b) => sc.get(a.id) - sc.get(b.id) || (a.createdAt || 0) - (b.createdAt || 0));
+  let s = sorted.map(i => rowHTML(i, true)).join("")
+       || `<li class="empty">${done.length ? "All done! 🎉" : "Nothing on the list."}</li>`;
+  if (done.length) s += '<li class="section">Got it</li>' + done.map(i => rowHTML(i, true)).join("");
+  $("#shopList").innerHTML = s;
+}
+
+function renderStores(){
+  const sel = $("#storeSel");
+  sel.innerHTML = '<option value="">Choose supermarket…</option>' +
+    stores.map(s => `<option value="${esc(s.id)}">${esc(s.name)}${s.lat != null ? " 📍" : ""}</option>`).join("");
+  sel.value = stores.some(s => s.id === storeId) ? storeId : "";
+}
+
+function flash(id){
+  const els = document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`);
+  els.forEach(el => { el.classList.add("flash"); el.scrollIntoView({ block: "center", behavior: "smooth" }); });
+  setTimeout(() => els.forEach(el => el.classList.remove("flash")), 1200);
+}
+
+/* ---------- actions ---------- */
+// Adds an item (or more of one already on the list); returns { id, isNew }
+function addItem(text, cat, qty = 1){
+  const key = keyOf(text);
+  recordWord(text, key, cat);
+  const open = items.find(i => i.key === key && !i.ticked);
+  if (open){
+    // Already on the list: add to its quantity and note who else wants it
+    const names = [open.addedBy, me].filter(Boolean);
+    updateDoc(itemRef(open.id), {
+      qty: open.qty == null ? qtyOf(open) + qty : increment(qty),
+      addedByAll: arrayUnion(...names)
+    }).catch(fail);
+    toast(`${open.text} ×${qtyOf(open) + qty}`);
+    flash(open.id);
+    return { id: open.id, isNew: false };
+  }
+  // Not on the list, or only already in the trolley: add a new entry
+  const ref = doc(itemsCol());
+  setDoc(ref, { text, key, cat: cat || null, qty, ticked: false, tickedAt: null, tickedStore: null,
+                addedBy: me, addedByAll: me ? [me] : [], createdAt: Date.now() }).catch(fail);
+  return { id: ref.id, isNew: true };
+}
+
+function changeQty(id, d){
+  const it = items.find(i => i.id === id); if (!it) return;
+  const q = qtyOf(it);
+  if (d < 0 && q <= 1) return;   // never below 1 – use ✕ to delete
+  updateDoc(itemRef(id), { qty: it.qty == null ? q + d : increment(d) }).catch(fail);
+}
+
+function addTyped(input){
+  const { name: raw, qty } = parseQty(input);
+  if (!raw) return;
+  const r = resolve(raw);
+  const { id, isNew } = addItem(r.text, r.cat, qty);
+  if (isNew && r.corrected){
+    toast(`Changed to "${r.text}"`, { label: "Undo", fn: () => {
+      const orig = r.original.charAt(0).toUpperCase() + r.original.slice(1);
+      const k = keyOf(orig);
+      updateDoc(itemRef(id), { text: orig, key: k, cat: null }).catch(fail);
+      recordWord(orig, k, null);   // learn it, so it isn't "corrected" next time
+    }});
+  }
+}
+
+function toggle(id){
+  const it = items.find(i => i.id === id); if (!it) return;
+  if (it.ticked){
+    updateDoc(itemRef(id), { ticked: false, tickedAt: null, tickedStore: null, outOfOrder: false }).catch(fail);
+  } else {
+    if (!storeId) toast("Tip: pick the supermarket so the app can learn its layout");
+    updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null, outOfOrder: false }).catch(fail);
+  }
+}
+
+// Yellow circle: it's in the trolley, but was picked up out of the usual order – don't learn from it
+function tickOutOfOrder(id){
+  const it = items.find(i => i.id === id); if (!it || it.ticked) return;
+  updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null, outOfOrder: true }).catch(fail);
+}
+
+function delItem(id){ deleteDoc(itemRef(id)).catch(fail); }
+
+function finishShop(){
+  const done = items.filter(i => i.ticked);
+  if (!done.length){ toast("Nothing ticked yet"); return; }
+  const st = stores.find(s => s.id === storeId);
+  const trip = done.filter(i => i.tickedStore === storeId && !i.outOfOrder).sort(byTick);   // yellow-ticked items are left out
+  const learn = st && trip.length >= 3;
+  if (!confirm(`Clear ${done.length} ticked item${done.length > 1 ? "s" : ""}?` +
+      (learn ? `\n\nThe order you ticked them will be used to learn the layout of ${st.name}.` : ""))) return;
+
+  const batch = writeBatch(db);
+  if (learn){
+    // Position in this trip: 0 = first picked, 1 = last picked.
+    // Blend into the running score so the layout adapts if the store is rearranged.
+    const scores = { ...(st.scores || {}) };
+    const n = trip.length;
+    trip.forEach((it, i) => {
+      const p = i / (n - 1);
+      const old = scores[it.key];
+      scores[it.key] = old == null ? p : Math.round((0.7 * old + 0.3 * p) * 10000) / 10000;
+    });
+    batch.set(storeRef(st.id), { scores }, { merge: true });
+  }
+  // Keep a permanent record of each item bought (for usage tracking), then clear it from the list
+  done.forEach(i => {
+    batch.set(doc(historyCol()), {
+      text: i.text ?? "", key: i.key ?? "", cat: i.cat ?? null, qty: qtyOf(i),
+      addedBy: i.addedBy ?? null,
+      addedByAll: Array.isArray(i.addedByAll) && i.addedByAll.length ? i.addedByAll : (i.addedBy ? [i.addedBy] : []),
+      createdAt: i.createdAt ?? null, tickedAt: i.tickedAt ?? null, tickedStore: i.tickedStore ?? null,
+      outOfOrder: !!i.outOfOrder
+    });
+    batch.delete(itemRef(i.id));
+  });
+  batch.commit().catch(fail);
+  toast(learn ? `Cleared – ${st.name} layout updated` : "Cleared");
+}
+
+function selectStore(id){
+  storeId = id; LS.set("sl_store", id);
+  $("#storeSel").value = id; render();
+}
+
+function getPos(ok, silent){
+  if (!navigator.geolocation){ if (!silent) toast("Location isn't available on this device"); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => ok({ lat: p.coords.latitude, lng: p.coords.longitude }),
+    () => { if (!silent) toast("Couldn't get your location"); },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+function locate(silent){
+  getPos(({ lat, lng }) => {
+    let best = null, bd = Infinity;
+    stores.forEach(s => {
+      if (s.lat == null) return;
+      const d = distM(lat, lng, s.lat, s.lng);
+      if (d < bd){ bd = d; best = s; }
+    });
+    if (best && bd < 400){
+      selectStore(best.id);
+      if (!silent) toast(`📍 ${best.name}`);
+    } else if (!silent){
+      const cur = stores.find(s => s.id === storeId);
+      if (cur && confirm(`No saved store nearby.\n\nSave this spot as the location of ${cur.name}?`)){
+        setDoc(storeRef(cur.id), { lat, lng }, { merge: true }).catch(fail);
+        toast(`Location saved for ${cur.name}`);
+      } else if (!cur){
+        toast("No saved store nearby – tap ＋ to add this one");
+      }
+    }
+  }, silent);
+}
+
+function autoLocate(){
+  if (!navigator.permissions) return;
+  navigator.permissions.query({ name: "geolocation" })
+    .then(r => { if (r.state === "granted") locate(true); })
+    .catch(() => {});
+}
+
+function newStore(){
+  const name = (prompt("Supermarket name (e.g. Pak'nSave Riccarton)") || "").trim();
+  if (!name) return;
+  const ref = doc(storesCol());
+  setDoc(ref, { name, scores: {} }).catch(fail);
+  selectStore(ref.id);
+  if (confirm(`Are you at ${name} now?\n\nSaving its location lets the app pick it automatically next time.`)){
+    getPos(({ lat, lng }) => {
+      setDoc(ref, { lat, lng }, { merge: true }).catch(fail);
+      toast(`Location saved for ${name}`);
+    });
+  }
+}
+
+function setMode(m){
+  mode = m; LS.set("sl_mode", m);
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  $("#addView").classList.toggle("hidden", m !== "add");
+  $("#shopView").classList.toggle("hidden", m !== "shop");
+  $("#footer").classList.toggle("hidden", m !== "shop");
+  if (m === "shop") autoLocate();
+}
+
+/* ---------- Google sign-in ---------- */
+function showLogin(msg){
+  $("#loginMsg").textContent = msg || "";
+  $("#googleBtn").textContent = auth.currentUser ? "Use a different Google account" : "Sign in with Google";
+  $("#login").classList.remove("hidden");
+}
+
+async function googleSignIn(){
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  $("#loginMsg").textContent = "";
+  try {
+    if (auth.currentUser) await signOut(auth);
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment"){
+      signInWithRedirect(auth, provider);
+    } else if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request"){
+      showLogin("Sign-in didn't work: " + (e.code || e.message));
+    }
+  }
+}
+
+function accountMenu(){
+  const u = auth.currentUser; if (!u) return showLogin();
+  if (confirm(`Signed in as ${u.email}.\n\nSign out?`)) signOut(auth);
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$("#addForm").onsubmit = e => {
+  e.preventDefault();
+  addTyped($("#addInput").value);
+  $("#addInput").value = ""; $("#addInput").focus();
+  renderChips();
+};
+$("#addInput").addEventListener("input", renderChips);
+$("#chips").addEventListener("mousedown", e => e.preventDefault());   // keep the keyboard open
+$("#chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  const { name: raw, qty } = parseQty($("#addInput").value);
+  if (b.dataset.free){
+    addItem(raw.charAt(0).toUpperCase() + raw.slice(1), null, qty);  // exactly as typed, no correction
+  } else {
+    const v = vocab.get(b.dataset.key); if (!v) return;
+    addItem(v.text, v.cat, qty);
+  }
+  $("#addInput").value = "";
+  renderChips();
+});
+// Shared handling for ✕ and −/+ on list rows; returns true if the tap was one of those
+function rowButtons(e, li){
+  if (e.target.closest("[data-del]")){ delItem(li.dataset.id); return true; }
+  if (e.target.closest("[data-inc]")){ changeQty(li.dataset.id, +1); return true; }
+  if (e.target.closest("[data-dec]")){ changeQty(li.dataset.id, -1); return true; }
+  if (e.target.closest("[data-skip]")){ tickOutOfOrder(li.dataset.id); return true; }
+  return !!e.target.closest(".qtyctl");   // tap in the gap between − and + does nothing
+}
+$("#addList").addEventListener("click", e => {
+  const li = e.target.closest(".item"); if (!li) return;
+  rowButtons(e, li);
+});
+$("#shopList").addEventListener("click", e => {
+  const li = e.target.closest(".item"); if (!li) return;
+  if (!rowButtons(e, li)) toggle(li.dataset.id);
+});
+$("#storeSel").onchange = e => selectStore(e.target.value);
+$("#locBtn").onclick = () => locate(false);
+$("#newStoreBtn").onclick = newStore;
+$("#finishBtn").onclick = finishShop;
+$("#settingsBtn").onclick = accountMenu;
+$("#googleBtn").onclick = googleSignIn;
+
+onAuthStateChanged(auth, user => {
+  if (user && !user.isAnonymous){
+    me = (user.displayName || user.email || "").split(/[ @]/)[0];
+    $("#login").classList.add("hidden");
+    start();
+  } else {
+    stopSync();
+    items = []; stores = []; words = [];
+    rebuildVocab(); render(); renderStores(); renderChips();
+    if (user) signOut(auth);   // drop the old anonymous sign-in
+    showLogin();
+  }
+});
+
+setMode(mode);
+</script>
+<script>
+/* Update check – if the website has a newer version than the copy on this phone, offer a one-tap update.
+   When you change this file, change APP_VERSION too (any new text will do). */
+(function () {
+  const APP_VERSION = "2026-10-16c";
+  let shown = false;
+  async function check() {
+    if (shown || !navigator.onLine || location.protocol === "file:") return;
+    try {
+      const r = await fetch(location.pathname + "?vcheck=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/APP_VERSION = "([^"]+)"/);
+      if (m && m[1] !== APP_VERSION) {
+        shown = true;
+        const b = document.createElement("button");
+        b.className = "update";
+        b.textContent = "New version available – tap to update";
+        b.onclick = () => location.replace(location.pathname + "?v=" + encodeURIComponent(m[1]));
+        document.body.appendChild(b);
+      }
+    } catch (e) {}
+  }
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  setInterval(check, 30 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

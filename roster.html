@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#8a4b0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kitchen">
+<title>Kitchen Roster</title>
+<style>
+:root{--bg:#faf7f3;--card:#fff;--ink:#231d17;--muted:#83786c;--accent:#9a5412;--accent2:#f6ebdf;--line:#e8e0d6;--warn:#b42318;--warnbg:#fdecea;--ok:#2f7d32}
+@media (prefers-color-scheme:dark){:root{--bg:#15120f;--card:#1f1a16;--ink:#efe8e0;--muted:#a09487;--accent:#e08a3c;--accent2:#33261a;--line:#352c24;--warn:#ff8a7a;--warnbg:#3a1d19;--ok:#66bb6a}}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);padding-top:env(safe-area-inset-top)}
+.top{display:flex;align-items:center;gap:8px;padding:12px 16px;max-width:720px;margin:0 auto}
+.top h1{font-size:20px;margin:0;flex:1}
+.iconbtn{background:none;border:0;color:inherit;font-size:20px;padding:6px;cursor:pointer;text-decoration:none}
+main{max-width:720px;margin:0 auto;padding:12px 16px 60px}
+.tonight{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.tonight h2{margin:0 0 8px;font-size:15px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.jobs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.job{background:var(--accent2);border-radius:10px;padding:10px 12px}
+.job .k{font-size:13px;color:var(--muted)}
+.job .v{font-size:18px;font-weight:700}
+.weeknav{display:flex;align-items:center;gap:8px;margin:6px 0 10px}
+.weeknav b{flex:1;text-align:center}
+.sbtn{font:600 13px system-ui,sans-serif;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.sbtn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+table{width:100%;border-collapse:separate;border-spacing:0 6px;table-layout:fixed}
+th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:0 4px;text-transform:uppercase;letter-spacing:.04em}
+th.day{width:62px}
+td{background:var(--card);padding:6px 4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+td:first-child{border-left:1px solid var(--line);border-radius:10px 0 0 10px;padding-left:10px}
+td:last-child{border-right:1px solid var(--line);border-radius:0 10px 10px 0}
+tr.today td{background:var(--accent2)}
+td.day b{display:block;font-size:15px}
+td.day small{color:var(--muted);font-size:12px}
+select{width:100%;font:inherit;font-size:14px;padding:7px 4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-width:0}
+select.missing{border-color:var(--warn);background:var(--warnbg)}
+select.cook{font-weight:600}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.summary{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:8px}
+.summary h3{margin:0 0 6px;font-size:15px}
+.summary table{border-spacing:0;font-size:14px}
+.summary td,.summary th{background:none;border:0;padding:4px 6px;border-radius:0}
+.warns{margin:8px 0 0;padding:0;list-style:none}
+.warns li{color:var(--warn);font-size:14px;margin:3px 0}
+.warns li.ok{color:var(--ok)}
+.hint{color:var(--muted);font-size:13px;margin:10px 2px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:20;padding:16px}
+.panel{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:400px}
+.panel h2{margin:0 0 6px;font-size:20px}
+.panel p{color:var(--muted);font-size:14px;margin:4px 0}
+.panel input{width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);margin-top:6px}
+.btn{font:600 15px system-ui,sans-serif;padding:12px 16px;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;width:100%;margin-top:14px}
+.btn.ghost{background:var(--accent2);color:var(--accent)}
+.err{color:var(--warn);font-size:14px}
+.err:empty{display:none}
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.update{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translateX(-50%);z-index:25;background:var(--accent);color:#fff;border:0;border-radius:20px;padding:10px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <a class="iconbtn" href="./" title="Home" aria-label="Home">🏠</a>
+    <h1>🍽️ Kitchen roster</h1>
+    <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </div>
+</header>
+
+<main>
+  <section class="tonight" id="tonight"></section>
+  <div class="weeknav">
+    <button class="sbtn" data-wk="-1">‹ Prev</button>
+    <b id="weekLabel"></b>
+    <button class="sbtn" data-wk="1">Next ›</button>
+  </div>
+  <div style="text-align:center"><button class="sbtn" data-wk="0">This week</button></div>
+  <table id="grid">
+    <thead><tr><th class="day"></th><th>👩‍🍳 Cook</th><th>🧽 Wash</th><th>🍽 Dry</th><th>🧹 Table</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="hint">Choosing the cook makes them wash that night, and drying and table go to the others. Picking someone who already has a job that night swaps them over. Leave Cook blank on nights a grown-up cooks.</p>
+  <div class="acts">
+    <button class="sbtn pri" id="fillBtn">Fill empty nights fairly</button>
+    <button class="sbtn" id="copyBtn">Copy last week</button>
+    <button class="sbtn" id="clearBtn">Clear this week</button>
+  </div>
+  <section class="summary" id="summary"></section>
+</main>
+
+<div class="overlay hidden" id="login">
+  <div class="panel">
+    <h2>🍽️ Kitchen roster</h2>
+    <p>Sign in with your Google account – the same one you use for the shopping list.</p>
+    <p class="err" id="loginMsg"></p>
+    <button class="btn" id="googleBtn">Sign in with Google</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="settings">
+  <div class="panel">
+    <h2>Settings</h2>
+    <p>The kids on the roster (comma separated, 3 or more):</p>
+    <input id="kidsIn" placeholder="e.g. Aria, Ben, Cleo">
+    <p class="err" id="sErr"></p>
+    <button class="btn" id="sSave">Save</button>
+    <button class="btn ghost" id="sClose">Close</button>
+    <p id="sWho" style="margin-top:14px"></p>
+    <button class="sbtn" id="sSignOut">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCNbFZRvipyDzV03dms_oDo7kCsDmOoXZY",
+  authDomain: "super-list-55399.firebaseapp.com",
+  projectId: "super-list-55399",
+  storageBucket: "super-list-55399.firebasestorage.app",
+  messagingSenderId: "147336745555",
+  appId: "1:147336745555:web:e2fde89202a616ca702ca6"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+
+/* Data: households/family/roster/config  { kids: [...] }
+         households/family/roster/w-YYYY-MM-DD (the Monday)  { days: { "0".."6": { cook, wash, dry, table } } } */
+const HOUSEHOLD = "family";
+const JOBS = ["wash", "dry", "table"];                    // must be filled every night
+const LABEL = { cook: "Cook", wash: "Wash", dry: "Dry", table: "Table" };
+const configRef = () => doc(db, "households", HOUSEHOLD, "roster", "config");
+const weekRef = ws => doc(db, "households", HOUSEHOLD, "roster", "w-" + ymd(ws));
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const weekStartOf = d => addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -((d.getDay() + 6) % 7));
+const fmtShort = d => d.toLocaleDateString("en-NZ", { day: "numeric", month: "short" });
+const dayName = d => d.toLocaleDateString("en-NZ", { weekday: "short" });
+let toastTimer;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); }
+function fail(e){
+  console.error(e);
+  if (e?.code === "permission-denied"){
+    unsubAll();
+    showLogin(`${auth.currentUser?.email || "This account"} isn't on the family list yet.`);
+  } else toast("Sync problem: " + (e?.code || e?.message || e));
+}
+
+let kids = [];
+let weekStart = weekStartOf(new Date());
+let days = emptyWeek();
+let thisWeekDays = emptyWeek();    // for the "tonight" card when browsing other weeks
+let unsubs = [], unsubWeek = null, unsubThis = null;
+
+function emptyWeek(){ const o = {}; for (let i = 0; i < 7; i++) o[i] = { cook: "", wash: "", dry: "", table: "" }; return o; }
+function normWeek(data){
+  const w = emptyWeek();
+  const d = data?.days || {};
+  for (let i = 0; i < 7; i++) for (const k of ["cook", ...JOBS]) w[i][k] = (d[i] && d[i][k]) || "";
+  return w;
+}
+
+/* ---------- rules ---------- */
+// Cook washes; the other two jobs go to the other kids, keeping tonight's existing choices where possible
+function applyCook(day, cook){
+  const d = { ...day, cook };
+  if (!cook) return d;
+  const others = kids.filter(k => k !== cook);
+  const keep = ["dry", "table"].map(j => others.includes(day[j]) ? day[j] : "");
+  if (keep[0] && keep[0] === keep[1]) keep[1] = "";
+  const free = others.filter(k => !keep.includes(k));
+  d.wash = cook;
+  d.dry = keep[0] || free.shift() || "";
+  d.table = keep[1] || free.shift() || "";
+  return d;
+}
+// Choosing someone who already has another job tonight swaps them over
+function applyJob(day, job, kid){
+  const d = { ...day };
+  const prev = d[job];
+  if (kid) for (const j of JOBS) if (j !== job && d[j] === kid) d[j] = prev;
+  d[job] = kid;
+  return d;
+}
+
+function counts(w){
+  const c = {};
+  kids.forEach(k => c[k] = { cook: 0, wash: 0, dry: 0, table: 0 });
+  for (let i = 0; i < 7; i++) for (const j of ["cook", ...JOBS]) { const k = w[i][j]; if (c[k]) c[k][j]++; }
+  return c;
+}
+
+// Fill nights that are missing jobs, choosing the combination that keeps the totals most even
+function fillWeek(w){
+  const out = normWeek({ days: w });
+  if (kids.length < 3) return out;
+  for (let i = 0; i < 7; i++){
+    const d = out[i];
+    if (JOBS.every(j => d[j])) continue;
+    if (d.cook && kids.includes(d.cook)) { out[i] = applyCook(d, d.cook); if (JOBS.every(j => out[i][j])) continue; }
+    const c = counts(out);
+    let best = null, bestScore = Infinity;
+    for (const perm of permutations(kids, 3)){
+      // keep anything already chosen tonight
+      if (JOBS.some((j, n) => d[j] && d[j] !== perm[n])) continue;
+      if (d.cook && kids.includes(d.cook) && perm[0] !== d.cook) continue;
+      let score = 0;
+      perm.forEach((k, n) => { const cc = c[k]; score += (cc[JOBS[n]] + 1) ** 2 + (cc.wash + cc.dry + cc.table + 1) ** 2 * 0.5; });
+      if (score < bestScore){ bestScore = score; best = perm; }
+    }
+    if (best) JOBS.forEach((j, n) => out[i][j] = best[n]);
+  }
+  return out;
+}
+function* permutations(arr, n, used = []){
+  if (used.length === n){ yield used.slice(); return; }
+  for (const a of arr) if (!used.includes(a)){ used.push(a); yield* permutations(arr, n, used); used.pop(); }
+}
+
+/* ---------- saving ---------- */
+function saveDay(i){
+  setDoc(weekRef(weekStart), { days: { [i]: days[i] }, updatedBy: auth.currentUser?.email || "", updatedAt: Date.now() }, { merge: true }).catch(fail);
+}
+function saveWeek(w){
+  setDoc(weekRef(weekStart), { days: w, updatedBy: auth.currentUser?.email || "", updatedAt: Date.now() }).catch(fail);
+}
+
+/* ---------- rendering ---------- */
+function options(sel, blank){
+  const list = sel && !kids.includes(sel) ? [...kids, sel] : kids;
+  return `<option value="">${blank}</option>` + list.map(k => `<option${k === sel ? " selected" : ""}>${esc(k)}</option>`).join("");
+}
+
+function render(){
+  $("#weekLabel").textContent = `${fmtShort(weekStart)} – ${fmtShort(addDays(weekStart, 6))}`;
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  const isThisWeek = +weekStart === +weekStartOf(new Date());
+  let rows = "";
+  for (let i = 0; i < 7; i++){
+    const d = addDays(weekStart, i), day = days[i];
+    rows += `<tr class="${isThisWeek && i === todayIdx ? "today" : ""}" data-i="${i}">
+      <td class="day"><b>${dayName(d)}</b><small>${fmtShort(d)}</small></td>
+      <td><select class="cook" data-job="cook" aria-label="Cook ${dayName(d)}">${options(day.cook, "—")}</select></td>
+      ${JOBS.map(j => `<td><select data-job="${j}" class="${day[j] ? "" : "missing"}" aria-label="${LABEL[j]} ${dayName(d)}">${options(day[j], "?")}</select></td>`).join("")}
+    </tr>`;
+  }
+  $("#grid tbody").innerHTML = rows;
+
+  // Tonight
+  const t = thisWeekDays[todayIdx];
+  const job = (k, v) => `<div class="job"><div class="k">${k}</div><div class="v">${esc(v || "—")}</div></div>`;
+  $("#tonight").innerHTML = `<h2>Tonight · ${new Date().toLocaleDateString("en-NZ", { weekday: "long" })}</h2>` + (kids.length ? `<div class="jobs">
+      ${t.cook ? job("👩‍🍳 Cooking & washing", t.cook) : job("🧽 Washing", t.wash)}
+      ${job("🍽 Drying", t.dry)}${job("🧹 Clearing the table", t.table)}</div>` : '<p class="hint">Add the kids in ⚙️ Settings to get started.</p>');
+
+  // Week summary and checks
+  const c = counts(days);
+  const warns = [];
+  for (let i = 0; i < 7; i++){
+    const miss = JOBS.filter(j => !days[i][j]);
+    if (miss.length) warns.push(`${dayName(addDays(weekStart, i))}: ${miss.map(j => LABEL[j].toLowerCase()).join(", ")} not assigned`);
+    const names = JOBS.map(j => days[i][j]).filter(Boolean);
+    if (new Set(names).size < names.length) warns.push(`${dayName(addDays(weekStart, i))}: someone has two jobs`);
+    if (days[i].cook && days[i].wash && days[i].cook !== days[i].wash) warns.push(`${dayName(addDays(weekStart, i))}: ${days[i].cook} cooks but ${days[i].wash} is washing`);
+  }
+  kids.forEach(k => {
+    if (c[k].cook === 0) warns.push(`${k} hasn't picked a night to cook`);
+    if (c[k].cook > 1) warns.push(`${k} is cooking ${c[k].cook} nights`);
+  });
+  $("#summary").innerHTML = kids.length ? `<h3>This week's totals</h3>
+    <table><tr><th></th><th>Cook</th><th>Wash</th><th>Dry</th><th>Table</th></tr>
+    ${kids.map(k => `<tr><td><b>${esc(k)}</b></td><td>${c[k].cook}</td><td>${c[k].wash}</td><td>${c[k].dry}</td><td>${c[k].table}</td></tr>`).join("")}</table>
+    <ul class="warns">${warns.map(w => `<li>⚠ ${esc(w)}</li>`).join("") || '<li class="ok">✓ Every night is covered and everyone cooks once.</li>'}</ul>` : "";
+}
+
+/* ---------- live data ---------- */
+function unsubAll(){ unsubs.forEach(u => u()); unsubs = []; unsubWeek?.(); unsubWeek = null; unsubThis?.(); unsubThis = null; }
+function watchWeek(){
+  unsubWeek?.();
+  unsubWeek = onSnapshot(weekRef(weekStart), snap => { days = normWeek(snap.data()); render(); }, fail);
+}
+function start(){
+  unsubAll();
+  unsubs.push(onSnapshot(configRef(), snap => {
+    kids = Array.isArray(snap.data()?.kids) ? snap.data().kids : [];
+    render();
+    if (!kids.length) openSettings();
+  }, fail));
+  unsubThis = onSnapshot(weekRef(weekStartOf(new Date())), snap => { thisWeekDays = normWeek(snap.data()); render(); }, fail);
+  watchWeek();
+}
+
+/* ---------- sign-in & settings ---------- */
+function showLogin(msg){ $("#loginMsg").textContent = msg || ""; $("#login").classList.remove("hidden"); }
+async function login(){
+  const p = new GoogleAuthProvider(); p.setCustomParameters({ prompt: "select_account" });
+  try { if (auth.currentUser) await signOut(auth); await signInWithPopup(auth, p); }
+  catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return signInWithRedirect(auth, p);
+    if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") showLogin("Sign-in didn't work: " + (e.code || e.message));
+  }
+}
+function openSettings(){
+  $("#kidsIn").value = kids.join(", "); $("#sErr").textContent = "";
+  $("#sWho").textContent = auth.currentUser ? "Signed in as " + auth.currentUser.email : "";
+  $("#settings").classList.remove("hidden");
+}
+function saveSettings(){
+  const list = [...new Set($("#kidsIn").value.split(",").map(s => s.trim()).filter(Boolean))];
+  if (list.length < 3){ $("#sErr").textContent = "Add at least three names – there are three jobs each night."; return; }
+  setDoc(configRef(), { kids: list }, { merge: true }).catch(fail);
+  $("#settings").classList.add("hidden");
+}
+
+onAuthStateChanged(auth, user => {
+  if (user && !user.isAnonymous){ $("#login").classList.add("hidden"); start(); }
+  else { unsubAll(); kids = []; days = emptyWeek(); thisWeekDays = emptyWeek(); render(); showLogin(); }
+});
+
+/* ---------- wiring ---------- */
+$("#grid").addEventListener("change", e => {
+  const sel = e.target.closest("select"); if (!sel) return;
+  const i = +sel.closest("tr").dataset.i, job = sel.dataset.job, kid = sel.value;
+  days[i] = job === "cook" ? applyCook(days[i], kid) : applyJob(days[i], job, kid);
+  render(); saveDay(i);
+});
+document.querySelector("main").addEventListener("click", e => {
+  const b = e.target.closest("[data-wk]"); if (!b) return;
+  const n = +b.dataset.wk;
+  weekStart = n === 0 ? weekStartOf(new Date()) : addDays(weekStart, 7 * n);
+  days = emptyWeek(); render(); if (auth.currentUser) watchWeek();
+});
+$("#fillBtn").onclick = () => {
+  if (kids.length < 3) return openSettings();
+  days = fillWeek(days); render(); saveWeek(days); toast("Empty nights filled");
+};
+$("#copyBtn").onclick = async () => {
+  try {
+    const snap = await getDoc(weekRef(addDays(weekStart, -7)));
+    if (!snap.exists()) return toast("Nothing saved for last week");
+    if (JOBS.some(j => Object.values(days).some(d => d[j])) && !confirm("Replace this week with last week's roster?")) return;
+    days = normWeek(snap.data()); render(); saveWeek(days); toast("Copied last week");
+  } catch (e) { fail(e); }
+};
+$("#clearBtn").onclick = () => { if (confirm("Clear the whole week?")){ days = emptyWeek(); render(); saveWeek(days); } };
+$("#settingsBtn").onclick = openSettings;
+$("#sSave").onclick = saveSettings;
+$("#sClose").onclick = () => $("#settings").classList.add("hidden");
+$("#sSignOut").onclick = () => { $("#settings").classList.add("hidden"); signOut(auth); };
+$("#googleBtn").onclick = login;
+render();
+</script>
+<script>
+/* Update check – if the website has a newer version than the copy on this phone, offer a one-tap update.
+   When you change this file, change APP_VERSION too (any new text will do). */
+(function () {
+  const APP_VERSION = "2026-10-16c";
+  let shown = false;
+  async function check() {
+    if (shown || !navigator.onLine || location.protocol === "file:") return;
+    try {
+      const r = await fetch(location.pathname + "?vcheck=" + Date.now(), { cache: "no-store" });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/APP_VERSION = "([^"]+)"/);
+      if (m && m[1] !== APP_VERSION) {
+        shown = true;
+        const b = document.createElement("button");
+        b.className = "update";
+        b.textContent = "New version available – tap to update";
+        b.onclick = () => location.replace(location.pathname + "?v=" + encodeURIComponent(m[1]));
+        document.body.appendChild(b);
+      }
+    } catch (e) {}
+  }
+  check();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  setInterval(check, 30 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

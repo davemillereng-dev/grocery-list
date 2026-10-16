@@ -91,8 +91,8 @@ input[type=checkbox]{width:auto}
 <body>
 <header>
   <div class="top">
+    <a class="iconbtn" href="./" title="Home" aria-label="Home">🏠</a>
     <h1>📅 Family Planner</h1>
-    <a class="iconbtn" href="./" title="Shopping list" aria-label="Shopping list">🛒</a>
     <button class="iconbtn" id="refreshBtn" aria-label="Refresh">⟳</button>
     <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
   </div>
@@ -104,14 +104,11 @@ input[type=checkbox]{width:auto}
 </header>
 
 <main>
-  <div class="banner hidden" id="reconnect">
-    <span>Calendar connection has timed out (Google allows about an hour).</span>
-    <button class="sbtn pri" id="reconnectBtn">Reconnect</button>
-  </div>
   <div class="banner hidden" id="needCal">
-    <span>Choose which Google Calendar the family shares.</span>
+    <span>Finish setting up: paste the calendar service link in Settings.</span>
     <button class="sbtn pri" id="needCalBtn">Set up</button>
   </div>
+  <div class="banner hidden" id="svcErr"><span id="svcErrMsg"></span><button class="sbtn" id="svcRetry">Retry</button></div>
   <div class="people" id="people"></div>
   <section id="todayView"></section>
   <section id="weekView" class="hidden"></section>
@@ -124,7 +121,7 @@ input[type=checkbox]{width:auto}
 <div class="overlay center hidden" id="login">
   <div class="sheet">
     <h2>📅 Family Planner</h2>
-    <p>Sign in with your Google account. You'll be asked to let the planner see and add events in your Google Calendar.</p>
+    <p>Sign in with your Google account – the same one you use for the shopping list.</p>
     <p class="err" id="loginMsg"></p>
     <button class="btn" id="googleBtn" style="width:100%;margin-top:14px">Sign in with Google</button>
   </div>
@@ -183,8 +180,8 @@ input[type=checkbox]{width:auto}
 <div class="overlay center hidden" id="settings">
   <div class="sheet">
     <h2>Settings</h2>
-    <div class="field"><label for="sCal">Shared family calendar</label><select id="sCal"></select>
-      <p>Everyone in the family needs edit access to this calendar in Google Calendar.</p></div>
+    <div class="field"><label for="sUrl">Calendar service link</label><input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off">
+      <p id="sCalName">The Web app URL from the planner's Apps Script deployment.</p></div>
     <div class="field"><label for="sPeople">Household members (comma separated)</label><input id="sPeople" placeholder="Dave, Sam, Molly, Grandma"></div>
     <p class="err" id="sErr"></p>
     <div class="sheetacts">
@@ -204,8 +201,7 @@ input[type=checkbox]{width:auto}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
-  reauthenticateWithPopup, signOut, onAuthStateChanged
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot
@@ -226,11 +222,6 @@ const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabMana
 
 const HOUSEHOLD = "family";
 const configRef = () => doc(db, "households", HOUSEHOLD, "planner", "config");
-const SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
-  "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
-];
-const API = "https://www.googleapis.com/calendar/v3";
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "Pacific/Auckland";
 const COLORS = ["#1f77b4", "#d6336c", "#2f9e44", "#f08c00", "#7048e8", "#0c8599", "#c2255c", "#5c940d"];
 const DAY = 86400000;
@@ -263,72 +254,48 @@ function toast(msg){
 
 /* ---------- state ---------- */
 let me = "";
-let config = { calendarId: "", calendarName: "", people: [] };
+let config = { apiUrl: "", calendarName: "", people: [] };
 let events = [];
 let view = LS.get("fp_view") || "today";
 let person = LS.get("fp_person") || "";
 let weekStart = weekStartOf(new Date());
 let editing = null;
-let calendars = [];
 let pollTimer = null;
 let unsubConfig = null;
 
-/* ---------- Google Calendar access token ----------
-   Google gives a browser app a calendar pass that lasts about an hour.
-   It's kept on this phone until it expires; after that one tap on "Reconnect" renews it. */
-function saveToken(t){ if (t) LS.set("fp_tok", JSON.stringify({ t, exp: Date.now() + 55 * 60000, uid: auth.currentUser?.uid || "" })); }
-function token(){
-  try {
-    const o = JSON.parse(LS.get("fp_tok") || "null");
-    if (o && o.exp > Date.now() && (!auth.currentUser || o.uid === auth.currentUser.uid || !o.uid)) return o.t;
-  } catch {}
-  return "";
-}
-function clearToken(){ LS.del("fp_tok"); }
-
-function provider(){
-  const p = new GoogleAuthProvider();
-  SCOPES.forEach(s => p.addScope(s));
-  const u = auth.currentUser;
-  p.setCustomParameters(u?.email ? { login_hint: u.email } : { prompt: "select_account" });
-  return p;
-}
-
-async function connect(){
+/* ---------- sign-in ---------- */
+async function login(){
   $("#loginMsg").textContent = "";
+  const p = new GoogleAuthProvider();
+  p.setCustomParameters({ prompt: "select_account" });
   try {
-    const res = auth.currentUser ? await reauthenticateWithPopup(auth.currentUser, provider()) : await signInWithPopup(auth, provider());
-    saveToken(GoogleAuthProvider.credentialFromResult(res)?.accessToken);
-    showReconnect(false);
-    await loadEvents();
+    if (auth.currentUser) await signOut(auth);
+    await signInWithPopup(auth, p);
   } catch (e) {
-    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return signInWithRedirect(auth, provider());
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return signInWithRedirect(auth, p);
     if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
-    if (e.code === "auth/user-mismatch") return toast("Please choose the same Google account you're signed in with");
     $("#loginMsg").textContent = "Sign-in didn't work: " + (e.code || e.message);
-    toast("Sign-in didn't work: " + (e.code || e.message));
   }
 }
 
-async function gcal(method, path, { body, query } = {}){
-  const t = token();
-  if (!t){ showReconnect(true); throw new Error("not-connected"); }
-  const url = new URL(API + path);
-  if (query) Object.entries(query).forEach(([k, v]) => { if (v != null && v !== "") url.searchParams.set(k, v); });
-  const r = await fetch(url, {
-    method,
-    headers: { Authorization: "Bearer " + t, ...(body ? { "Content-Type": "application/json" } : {}) },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  if (r.status === 401){ clearToken(); showReconnect(true); throw new Error("not-connected"); }
-  if (r.status === 204 || r.status === 410) return null;
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error?.message || ("Google Calendar error " + r.status));
+/* ---------- calendar service ----------
+   The Google Calendar work is done by a small Apps Script running in the owner's Google account.
+   Each request carries the person's app sign-in, which the service checks against the family list. */
+async function api(op, params = {}){
+  if (!config.apiUrl) throw new Error("not-set-up");
+  const idToken = await auth.currentUser.getIdToken();
+  let r;
+  try {
+    r = await fetch(config.apiUrl, { method: "POST", body: JSON.stringify({ op, idToken, ...params }) });
+  } catch (e) { throw new Error("Can't reach the calendar service – check your connection"); }
+  const j = await r.json().catch(() => ({ error: "The calendar service link doesn't look right – check it in Settings" }));
+  if (j.error) throw new Error(j.error);
   return j;
 }
-const calPath = () => "/calendars/" + encodeURIComponent(config.calendarId);
-
-function showReconnect(on){ $("#reconnect").classList.toggle("hidden", !on); }
+function showServiceError(msg){
+  $("#svcErrMsg").textContent = msg || "";
+  $("#svcErr").classList.toggle("hidden", !msg);
+}
 
 /* ---------- events ---------- */
 function toEvent(e){
@@ -356,30 +323,22 @@ function range(){
 
 let loading = false;
 async function loadEvents(){
-  if (!config.calendarId || !token() || loading) return;
+  if (!config.apiUrl || !auth.currentUser || loading) return;
   loading = true;
   try {
     const { from, to } = range();
     const out = []; let pageToken = "";
     do {
-      const j = await gcal("GET", calPath() + "/events", { query: {
-        singleEvents: "true", orderBy: "startTime", timeMin: from.toISOString(), timeMax: to.toISOString(),
-        maxResults: "250", pageToken
-      } });
+      const j = await api("list", { timeMin: from.toISOString(), timeMax: to.toISOString(), pageToken });
       (j.items || []).filter(e => e.status !== "cancelled" && e.start).forEach(e => out.push(toEvent(e)));
       pageToken = j.nextPageToken || "";
     } while (pageToken);
     events = out;
+    showServiceError("");
     render();
   } catch (e) {
-    if (e.message !== "not-connected") toast(e.message);
+    showServiceError(e.message);
   } finally { loading = false; }
-}
-
-async function loadCalendars(){
-  const j = await gcal("GET", "/users/me/calendarList", { query: { minAccessRole: "writer", maxResults: "250" } });
-  calendars = (j.items || []).map(c => ({ id: c.id, name: c.summaryOverride || c.summary, primary: !!c.primary }));
-  return calendars;
 }
 
 /* ---------- coordination logic ---------- */
@@ -388,17 +347,17 @@ const active = e => e.state !== "done" && e.state !== "dismissed";
 const peopleOf = e => [...new Set([e.primary, ...e.involved, e.responsible].filter(Boolean))];
 const matchesPerson = e => !person || peopleOf(e).includes(person);
 
-// Two timed events overlap and the same adult is responsible for both
+// Two timed events overlap and the same person is named on both
+// (as who it's for, involved, or responsible) – e.g. Dave's meeting vs. Aria's pick-up that Dave is doing
 function clashes(){
   const map = new Map();
-  const list = events.filter(e => !e.allDay && e.responsible && active(e)).sort((a, b) => a.start - b.start);
+  const add = (e, other, who) => (map.get(e.id) || map.set(e.id, []).get(e.id)).push({ other, who });
+  const list = events.filter(e => !e.allDay && active(e) && peopleOf(e).length).sort((a, b) => a.start - b.start);
   for (let i = 0; i < list.length; i++){
     for (let j = i + 1; j < list.length && list[j].start < list[i].end; j++){
       const a = list[i], b = list[j];
-      if (a.responsible === b.responsible){
-        (map.get(a.id) || map.set(a.id, []).get(a.id)).push(b);
-        (map.get(b.id) || map.set(b.id, []).get(b.id)).push(a);
-      }
+      const pb = peopleOf(b), who = peopleOf(a).filter(p => pb.includes(p));
+      if (who.length){ add(a, b, who); add(b, a, who); }
     }
   }
   return map;
@@ -414,7 +373,7 @@ function attentionItems(clashMap){
     if (e.state === "attention") reasons.push({ kind: "flag", text: "Marked as needing attention" });
     if (active(e) && e.action) reasons.push({ kind: "action", text: "To do: " + e.action });
     if (active(e) && e.support && !e.responsible) reasons.push({ kind: "support", text: `Needs someone for: ${e.support}` });
-    for (const o of clashMap.get(e.id) || []) reasons.push({ kind: "clash", text: `Clash: ${e.responsible} is also responsible for “${o.title}” (${fmtTime(o.start)})` });
+    for (const c of clashMap.get(e.id) || []) reasons.push({ kind: "clash", text: `Clash: ${c.who.join(" & ")} ${c.who.length > 1 ? "are" : "is"} also in “${c.other.title}” (${fmtTime(c.other.start)}–${fmtTime(c.other.end)})` });
     if (reasons.length) out.push({ e, reasons });
   }
   return out.sort((a, b) => a.e.start - b.e.start);
@@ -443,7 +402,7 @@ function evHTML(e, day, clashMap){
   if (e.location) bits.push("📍 " + e.location);
   const flags = [];
   if (active(e) && e.action) flags.push("☐ " + e.action);
-  for (const o of clashMap.get(e.id) || []) flags.push(`⚠ Clash with “${o.title}”`);
+  for (const c of clashMap.get(e.id) || []) flags.push(`⚠ Clash for ${c.who.join(" & ")} with “${c.other.title}”`);
   const tags = [
     e.review ? '<span class="tag warn">from email</span>' : "",
     e.state === "attention" ? '<span class="tag warn">attention</span>' : "",
@@ -527,10 +486,10 @@ const findEv = id => events.find(e => e.id === id);
 
 async function patchShared(e, fields, msg){
   try {
-    await gcal("PATCH", calPath() + "/events/" + encodeURIComponent(e.id), { body: { extendedProperties: { shared: fields } } });
+    await api("patch", { eventId: e.id, body: { extendedProperties: { shared: fields } } });
     if (msg) toast(msg);
     await loadEvents();
-  } catch (err) { if (err.message !== "not-connected") toast(err.message); }
+  } catch (err) { toast(err.message); }
 }
 // Done / Needs attention / Dismiss / Restore apply to this one occurrence only
 const setState = (e, state) => patchShared(e, { slState: state },
@@ -539,9 +498,9 @@ const setState = (e, state) => patchShared(e, { slState: state },
 async function removeEvent(e, all){
   const id = all && e.seriesId ? e.seriesId : e.id;
   try {
-    await gcal("DELETE", calPath() + "/events/" + encodeURIComponent(id));
+    await api("delete", { eventId: id });
     toast("Deleted"); closeEditor(); await loadEvents();
-  } catch (err) { if (err.message !== "not-connected") toast(err.message); }
+  } catch (err) { toast(err.message); }
 }
 
 /* ---------- editor ---------- */
@@ -561,7 +520,7 @@ function syncFormVisibility(){
 }
 
 function openEditor(e, presetDate){
-  if (!config.calendarId) return openSettings();
+  if (!config.apiUrl) return openSettings();
   editing = e || null;
   $("#edTitle").textContent = e ? "Edit commitment" : "Add commitment";
   $("#edErr").textContent = "";
@@ -657,14 +616,14 @@ async function save(ev){
     if (!editing){
       const body = { ...base, ...timesBody(f, f.date, f.endDate), extendedProperties: { shared: { ...sharedProps(f), slState: "" } } };
       const rr = rrule(f); if (rr) body.recurrence = rr;
-      await gcal("POST", calPath() + "/events", { body });
+      await api("insert", { body });
       toast("Added");
     } else {
       const scopeAll = editing.recurring && document.querySelector("input[name=scope]:checked").value === "all";
       let id = editing.id, dateStr = f.date, endStr = f.endDate;
       if (scopeAll){
         // Whole series: keep the series' own start date, apply the new times and details
-        const master = await gcal("GET", calPath() + "/events/" + encodeURIComponent(editing.seriesId));
+        const master = await api("get", { eventId: editing.seriesId });
         id = editing.seriesId;
         const mStart = master.start.date || master.start.dateTime.slice(0, 10);
         const spanDays = Math.round((parseYmd(f.endDate) - parseYmd(f.date)) / DAY);
@@ -673,49 +632,41 @@ async function save(ev){
       const body = { ...base, ...timesBody(f, dateStr, endStr), extendedProperties: { shared: sharedProps(f) } };
       if (f.allDay){ body.start.dateTime = null; body.end.dateTime = null; body.start.timeZone = null; body.end.timeZone = null; }
       else { body.start.date = null; body.end.date = null; }
-      await gcal("PATCH", calPath() + "/events/" + encodeURIComponent(id), { body });
+      await api("patch", { eventId: id, body });
       toast(scopeAll ? "Updated every occurrence" : "Updated");
     }
     closeEditor();
     await loadEvents();
   } catch (err) {
-    if (err.message !== "not-connected") $("#edErr").textContent = err.message;
-    else $("#edErr").textContent = "Calendar connection timed out – tap Reconnect, then Save again.";
+    $("#edErr").textContent = err.message;
   } finally { btn.disabled = false; }
 }
 
 /* ---------- settings ---------- */
 async function openSettings(){
   $("#sErr").textContent = "";
+  $("#sUrl").value = config.apiUrl || "";
   $("#sPeople").value = config.people.join(", ");
   $("#sWho").textContent = auth.currentUser ? "Signed in as " + auth.currentUser.email : "";
-  const sel = $("#sCal");
-  sel.innerHTML = `<option value="">Loading calendars…</option>`;
+  $("#sCalName").textContent = config.calendarName ? `Connected to the “${config.calendarName}” calendar.` : "The Web app URL from the planner's Apps Script deployment.";
   $("#settings").classList.remove("hidden");
-  try {
-    await loadCalendars();
-    sel.innerHTML = '<option value="">— choose —</option>' + calendars.map(c =>
-      `<option value="${esc(c.id)}">${esc(c.name)}${c.primary ? " (your main calendar)" : ""}</option>`).join("");
-    sel.value = config.calendarId || "";
-    if (config.calendarId && !sel.value){
-      sel.insertAdjacentHTML("beforeend", `<option value="${esc(config.calendarId)}">${esc(config.calendarName || "Current family calendar")}</option>`);
-      sel.value = config.calendarId;
-    }
-  } catch (e) {
-    sel.innerHTML = config.calendarId ? `<option value="${esc(config.calendarId)}">${esc(config.calendarName || config.calendarId)}</option>` : '<option value="">Connect first</option>';
-    $("#sErr").textContent = e.message === "not-connected" ? "Tap Reconnect first to load your calendars." : e.message;
-  }
 }
 
 async function saveSettings(){
-  const calId = $("#sCal").value;
+  const url = $("#sUrl").value.trim();
   const people = [...new Set(split($("#sPeople").value))];
-  if (!calId){ $("#sErr").textContent = "Choose the family calendar"; return; }
-  const cal = calendars.find(c => c.id === calId);
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)){ $("#sErr").textContent = "Paste the Web app URL – it starts with https://script.google.com/"; return; }
+  $("#sErr").textContent = "Checking the link…";
+  let name = "";
   try {
-    await setDoc(configRef(), { calendarId: calId, calendarName: cal?.name || config.calendarName || "", people }, { merge: true });
+    const prev = config.apiUrl; config.apiUrl = url;
+    const info = await api("info").finally(() => { config.apiUrl = prev; });
+    name = info.name || "";
+  } catch (e) { $("#sErr").textContent = e.message; return; }
+  try {
+    await setDoc(configRef(), { apiUrl: url, calendarName: name, people }, { merge: true });
     $("#settings").classList.add("hidden");
-    toast("Saved");
+    toast(name ? `Connected to “${name}”` : "Saved");
   } catch (e) {
     $("#sErr").textContent = e.code === "permission-denied" ? "Your account isn't on the family list in Firebase." : (e.message || e);
   }
@@ -725,13 +676,14 @@ async function saveSettings(){
 function startConfig(){
   unsubConfig?.();
   unsubConfig = onSnapshot(configRef(), snap => {
-    const prev = config.calendarId;
-    config = { calendarId: "", calendarName: "", people: [], ...(snap.data() || {}) };
+    const prev = config.apiUrl;
+    config = { apiUrl: "", calendarName: "", people: [], ...(snap.data() || {}) };
+    if (!Array.isArray(config.people)) config.people = [];
     if (person && !config.people.includes(person)) person = "";
-    $("#needCal").classList.toggle("hidden", !!config.calendarId);
-    $("#addBtn").classList.toggle("hidden", !config.calendarId);
+    $("#needCal").classList.toggle("hidden", !!config.apiUrl);
+    $("#addBtn").classList.toggle("hidden", !config.apiUrl);
     render();
-    if (config.calendarId && config.calendarId !== prev) loadEvents();
+    if (config.apiUrl && config.apiUrl !== prev) loadEvents();
   }, e => {
     if (e.code === "permission-denied"){
       showLogin(`${auth.currentUser?.email || "This account"} isn't on the family list yet. Ask whoever set up the planner to add it, or use a different Google account.`);
@@ -750,32 +702,27 @@ function startPolling(){
   pollTimer = setInterval(() => { if (document.visibilityState === "visible") loadEvents(); }, 60000);
 }
 
-getRedirectResult(auth).then(res => {
-  if (res){ saveToken(GoogleAuthProvider.credentialFromResult(res)?.accessToken); loadEvents(); }
-}).catch(() => {});
-
 onAuthStateChanged(auth, user => {
   if (user && !user.isAnonymous){
     me = (user.displayName || user.email || "").split(/[ @]/)[0];
     $("#login").classList.add("hidden");
-    showReconnect(!token());
     startConfig();
     startPolling();
   } else {
     unsubConfig?.(); clearInterval(pollTimer);
-    events = []; config = { calendarId: "", calendarName: "", people: [] };
-    clearToken(); render();
+    events = []; config = { apiUrl: "", calendarName: "", people: [] };
+    render();
     showLogin();
   }
 });
 
 /* ---------- wiring ---------- */
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
-$("#googleBtn").onclick = async () => { if (auth.currentUser && $("#loginMsg").textContent){ await signOut(auth); } connect(); };
-$("#reconnectBtn").onclick = connect;
+$("#googleBtn").onclick = login;
+$("#svcRetry").onclick = () => loadEvents();
 $("#needCalBtn").onclick = openSettings;
 $("#settingsBtn").onclick = openSettings;
-$("#refreshBtn").onclick = () => token() ? loadEvents().then(() => toast("Up to date")) : connect();
+$("#refreshBtn").onclick = () => loadEvents().then(() => toast("Up to date"));
 $("#addBtn").onclick = () => openEditor(null, view === "week" && +weekStart !== +weekStartOf(new Date()) ? weekStart : null);
 $("#sClose").onclick = () => $("#settings").classList.add("hidden");
 $("#sSave").onclick = saveSettings;
@@ -835,7 +782,7 @@ render();
 /* Update check – if the website has a newer version than the copy on this phone, offer a one-tap update.
    When you change this file, change APP_VERSION too (any new text will do). */
 (function () {
-  const APP_VERSION = "2026-10-16b";
+  const APP_VERSION = "2026-10-16c";
   let shown = false;
   async function check() {
     if (shown || !navigator.onLine || location.protocol === "file:") return;
