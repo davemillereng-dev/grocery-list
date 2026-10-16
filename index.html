@@ -46,6 +46,10 @@ ul{list-style:none;margin:0;padding:0}
 .item.ticked .txt{text-decoration:line-through;color:var(--muted)}
 .check{width:26px;height:26px;border-radius:50%;border:2px solid var(--accent);flex:none;display:grid;place-items:center;font-size:15px;color:#fff}
 .item.ticked .check{background:var(--accent)}
+.check.skip{border-color:var(--skip)}
+.item.ticked .check.skip{background:var(--skip)}
+.skipbtn{width:26px;height:26px;border-radius:50%;border:2px solid var(--skip);background:none;flex:none;padding:0;cursor:pointer;margin-right:2px}
+.update{position:fixed;left:50%;top:calc(110px + env(safe-area-inset-top));transform:translateX(-50%);z-index:25;background:var(--accent);color:#fff;border:0;border-radius:20px;padding:10px 18px;font:600 14px system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer}
 .shop .item{cursor:pointer;user-select:none;-webkit-user-select:none}
 .item.flash{background:var(--accent2)}
 .section{font-size:12px;color:var(--muted);margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.05em}
@@ -72,6 +76,7 @@ ul{list-style:none;margin:0;padding:0}
   <div class="top">
     <h1>🛒 Super List</h1>
     <span id="count"></span>
+    <a class="iconbtn" href="calendar.html" title="Family planner" aria-label="Family planner" style="text-decoration:none">📅</a>
     <button class="iconbtn" id="settingsBtn" aria-label="Settings">⚙️</button>
   </div>
   <div class="tabs">
@@ -402,12 +407,15 @@ function rowHTML(it, shop){
   const who = (it.addedByAll && it.addedByAll.length ? it.addedByAll : [it.addedBy]).filter(Boolean).join(", ");
   const sub = [shop ? cat : null, who].filter(Boolean).join(" · ");
   const q = qtyOf(it);
-  const ctl = it.ticked ? "" : `<span class="qtyctl">
+  // Add mode: −/+ quantity. Shopping mode: yellow circle = in the trolley, but out of the usual order
+  const ctl = it.ticked ? "" : shop
+    ? `<button class="skipbtn" data-skip aria-label="In trolley – picked up out of order (not used to learn the layout)" title="Got it, but out of the usual order"></button>`
+    : `<span class="qtyctl">
       <button class="qbtn" data-dec aria-label="One less"${q <= 1 ? " disabled" : ""}>−</button>
       <button class="qbtn" data-inc aria-label="One more">+</button>
     </span>`;
   return `<li class="item${it.ticked ? " ticked" : ""}" data-id="${esc(it.id)}">
-    ${shop ? `<span class="check">${it.ticked ? "✓" : ""}</span>` : ""}
+    ${shop ? `<span class="check${it.ticked && it.outOfOrder ? " skip" : ""}">${it.ticked ? "✓" : ""}</span>` : ""}
     <span class="txt">${esc(it.text)}${q > 1 ? `<span class="qty">×${q}</span>` : ""}${sub ? `<span class="by">${esc(sub)}</span>` : ""}</span>
     ${ctl}
     <button class="del" data-del aria-label="Delete">✕</button>
@@ -494,11 +502,17 @@ function addTyped(input){
 function toggle(id){
   const it = items.find(i => i.id === id); if (!it) return;
   if (it.ticked){
-    updateDoc(itemRef(id), { ticked: false, tickedAt: null, tickedStore: null }).catch(fail);
+    updateDoc(itemRef(id), { ticked: false, tickedAt: null, tickedStore: null, outOfOrder: false }).catch(fail);
   } else {
     if (!storeId) toast("Tip: pick the supermarket so the app can learn its layout");
-    updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null }).catch(fail);
+    updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null, outOfOrder: false }).catch(fail);
   }
+}
+
+// Yellow circle: it's in the trolley, but was picked up out of the usual order – don't learn from it
+function tickOutOfOrder(id){
+  const it = items.find(i => i.id === id); if (!it || it.ticked) return;
+  updateDoc(itemRef(id), { ticked: true, tickedAt: Date.now(), tickedStore: storeId || null, outOfOrder: true }).catch(fail);
 }
 
 function delItem(id){ deleteDoc(itemRef(id)).catch(fail); }
@@ -507,7 +521,7 @@ function finishShop(){
   const done = items.filter(i => i.ticked);
   if (!done.length){ toast("Nothing ticked yet"); return; }
   const st = stores.find(s => s.id === storeId);
-  const trip = done.filter(i => i.tickedStore === storeId).sort(byTick);
+  const trip = done.filter(i => i.tickedStore === storeId && !i.outOfOrder).sort(byTick);   // yellow-ticked items are left out
   const learn = st && trip.length >= 3;
   if (!confirm(`Clear ${done.length} ticked item${done.length > 1 ? "s" : ""}?` +
       (learn ? `\n\nThe order you ticked them will be used to learn the layout of ${st.name}.` : ""))) return;
@@ -531,7 +545,8 @@ function finishShop(){
       text: i.text ?? "", key: i.key ?? "", cat: i.cat ?? null, qty: qtyOf(i),
       addedBy: i.addedBy ?? null,
       addedByAll: Array.isArray(i.addedByAll) && i.addedByAll.length ? i.addedByAll : (i.addedBy ? [i.addedBy] : []),
-      createdAt: i.createdAt ?? null, tickedAt: i.tickedAt ?? null, tickedStore: i.tickedStore ?? null
+      createdAt: i.createdAt ?? null, tickedAt: i.tickedAt ?? null, tickedStore: i.tickedStore ?? null,
+      outOfOrder: !!i.outOfOrder
     });
     batch.delete(itemRef(i.id));
   });
