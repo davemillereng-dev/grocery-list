@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopping data export</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; color: #1d2b24; background: #fff; }
+  h1 { font-size: 1.4rem; }
+  button { font-size: 1rem; padding: 10px 18px; border-radius: 8px; border: 0; background: #24513b; color: #fff; cursor: pointer; margin: 6px 6px 6px 0; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { margin-top: 16px; white-space: pre-line; }
+</style>
+</head>
+<body>
+<h1>Shopping data export</h1>
+<p>Downloads every logged purchase (from "Finish shop") plus items still on the list, as a CSV file for Excel.</p>
+<button id="signin">Sign in with Google</button>
+<button id="dl" disabled>Download CSV</button>
+<div id="status"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyCNbFZRvipyDzV03dms_oDo7kCsDmOoXZY",
+  authDomain: "super-list-55399.firebaseapp.com",
+  projectId: "super-list-55399",
+  storageBucket: "super-list-55399.firebasestorage.app",
+  messagingSenderId: "147336745555",
+  appId: "1:147336745555:web:e2fde89202a616ca702ca6"
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = s => document.querySelector(s);
+const status = t => $("#status").textContent = t;
+
+$("#signin").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => status("Sign-in failed: " + e.message));
+onAuthStateChanged(auth, u => {
+  $("#dl").disabled = !u;
+  if (u) status("Signed in as " + u.email);
+});
+
+// Local NZ date/time, readable by Excel
+const fmt = ms => ms ? new Date(ms).toLocaleString("sv-SE", { timeZone: "Pacific/Auckland" }) : "";
+const csvCell = v => {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+
+$("#dl").onclick = async () => {
+  try {
+    status("Reading data…");
+    const base = ["households", "family"];
+    const [hist, items, stores] = await Promise.all(
+      ["history", "items", "stores"].map(c => getDocs(collection(db, ...base, c)))
+    );
+    const storeName = new Map(stores.docs.map(d => [d.id, d.data().name || d.id]));
+
+    const header = ["status", "item", "category", "qty", "added_by", "all_who_added",
+                    "added_at", "ticked_at", "store", "out_of_order"];
+    const rows = [];
+    const push = (statusLabel, r) => rows.push([
+      statusLabel, r.text, r.cat, r.qty ?? 1, r.addedBy,
+      (r.addedByAll || []).join("; "), fmt(r.createdAt), fmt(r.tickedAt),
+      r.tickedStore ? (storeName.get(r.tickedStore) || r.tickedStore) : "",
+      r.outOfOrder ? "yes" : "no"
+    ]);
+    hist.docs.forEach(d => push("bought", d.data()));
+    items.docs.forEach(d => push(d.data().ticked ? "ticked, not finished" : "on list", d.data()));
+    rows.sort((a, b) => (a[6] || "").localeCompare(b[6] || ""));
+
+    const csv = "﻿" + [header, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = "shopping-history-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    status(`Downloaded ${hist.size} bought items and ${items.size} items still on the list.`);
+  } catch (e) {
+    status("Couldn't read the data: " + e.message);
+  }
+};
+</script>
+</body>
+</html>
